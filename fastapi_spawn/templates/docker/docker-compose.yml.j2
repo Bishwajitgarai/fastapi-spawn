@@ -25,7 +25,7 @@ services:
 {% endif %}
     volumes:
       - .:/app
-{% if (has_relational_db and db != "sqlite") or has_mongo or broker == "redis" or cache == "redis" or broker == "rabbitmq" %}
+{% if (has_relational_db and db != "sqlite") or has_mongo or broker == "redis" or cache == "redis" or broker == "rabbitmq" or vector_db == "qdrant" or vector_db == "elasticsearch" or vector_db == "opensearch" or ai == "ollama" %}
     environment:
 {% if has_relational_db and db == "postgresql" %}
       - POSTGRES_HOST=postgres
@@ -41,6 +41,18 @@ services:
 {% endif %}
 {% if broker == "rabbitmq" %}
       - RABBITMQ_HOST=rabbitmq
+{% endif %}
+{% if vector_db == "elasticsearch" %}
+      - ELASTICSEARCH_HOST=elasticsearch
+{% endif %}
+{% if vector_db == "opensearch" %}
+      - OPENSEARCH_HOST=opensearch
+{% endif %}
+{% if vector_db == "qdrant" %}
+      - QDRANT_HOST=qdrant
+{% endif %}
+{% if ai == "ollama" %}
+      - OLLAMA_HOST=ollama
 {% endif %}
 {% endif %}
     restart: unless-stopped

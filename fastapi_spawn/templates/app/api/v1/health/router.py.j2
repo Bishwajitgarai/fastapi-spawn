@@ -28,6 +28,51 @@ async def health() -> HealthResponse:
     )
 
 
+@router.get("/services", summary="Check external services status")
+async def check_services() -> dict:
+    """Checks connection to external services."""
+    results = {}
+    
+{% if vector_db == "elasticsearch" %}
+    try:
+        import urllib.request
+        from app.core.config import settings
+        response = urllib.request.urlopen(settings.elasticsearch_url, timeout=5)
+        if response.status == 200:
+            results["elasticsearch"] = "connected"
+        else:
+            results["elasticsearch"] = f"failed with status {response.status}"
+    except Exception as e:
+        results["elasticsearch"] = f"error: {e}"
+{% endif %}
+
+{% if vector_db == "opensearch" %}
+    try:
+        import urllib.request
+        from app.core.config import settings
+        response = urllib.request.urlopen(settings.opensearch_url, timeout=5)
+        if response.status == 200:
+            results["opensearch"] = "connected"
+        else:
+            results["opensearch"] = f"failed with status {response.status}"
+    except Exception as e:
+        results["opensearch"] = f"error: {e}"
+{% endif %}
+
+{% if broker == "kafka" %}
+    try:
+        from app.core.kafka import kafka_producer
+        if kafka_producer.producer:
+            results["kafka"] = "connected"
+        else:
+            results["kafka"] = "not_started"
+    except Exception as e:
+        results["kafka"] = f"error: {e}"
+{% endif %}
+
+    return results
+
+
 @router.get("/readiness", summary="Readiness probe (Kubernetes)")
 async def readiness() -> dict:
     """Indicates whether the service is ready to accept traffic."""
