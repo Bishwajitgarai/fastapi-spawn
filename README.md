@@ -516,6 +516,9 @@ fastapi-spawn add prometheus   # Prometheus metrics
 fastapi-spawn add rbac             # Role-Based Access Control (@RequireRole decorator)
 fastapi-spawn add caching          # Redis API Response Caching (@cache decorator)
 fastapi-spawn add response-format  # Global formatted JSON response middleware
+fastapi-spawn add admin            # Internal CRUD Admin Dashboard (sqladmin)
+fastapi-spawn add pagination       # Automatic endpoint pagination logic
+fastapi-spawn add uploads          # File upload router (Multipart Form)
 ```
 
 *Example:*

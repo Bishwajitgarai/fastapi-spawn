@@ -1,0 +1,30 @@
+from sqladmin import Admin, ModelView
+
+# Example User model admin view. 
+# Uncomment and replace with your actual model from app.models
+#
+# from app.models.user import User
+#
+# class UserAdmin(ModelView, model=User):
+#     column_list = [User.id, User.email]
+#     column_searchable_list = [User.email]
+#     column_sortable_list = [User.id]
+#     can_create = True
+#     can_edit = True
+#     can_delete = True
+#     can_view_details = True
+
+def setup_admin(app, engine):
+    """
+    Mounts the sqladmin dashboard at /admin.
+    Call this in your main.py:
+        from app.admin.setup import setup_admin
+        setup_admin(app, engine)
+    """
+    # Ensure authentication is added if exposing to production!
+    admin = Admin(app, engine, title="Admin Dashboard")
+    
+    # Register views here
+    # admin.add_view(UserAdmin)
+    
+    return admin

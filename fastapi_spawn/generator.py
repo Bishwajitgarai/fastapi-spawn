@@ -249,6 +249,18 @@ class ProjectGenerator:
             middleware.mkdir(exist_ok=True)
             self._render_to(middleware / "response_format.py", "app/middleware/response_format.py.j2")
 
+        if "admin" in extras:
+            (pkg / "admin").mkdir(parents=True, exist_ok=True)
+            self._render_to(pkg / "admin" / "setup.py", "app/admin/setup.py.j2")
+
+        if "pagination" in extras:
+            (v1 / "pagination").mkdir(parents=True, exist_ok=True)
+            self._render_to(v1 / "pagination" / "router.py", "app/api/v1/pagination/router.py.j2")
+
+        if "uploads" in extras:
+            (v1 / "uploads").mkdir(parents=True, exist_ok=True)
+            self._render_to(v1 / "uploads" / "router.py", "app/api/v1/uploads/router.py.j2")
+
 
     def _generate_tasks(self, root: Path) -> None:
         """Root-level tasks/ directory."""

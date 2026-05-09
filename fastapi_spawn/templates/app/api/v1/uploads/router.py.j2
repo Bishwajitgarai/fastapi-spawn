@@ -1,0 +1,43 @@
+from fastapi import APIRouter, UploadFile, File, HTTPException
+import shutil
+import os
+import uuid
+
+router = APIRouter(
+    prefix="/uploads",
+    tags=["uploads"]
+)
+
+# Maximum file size (5MB)
+MAX_FILE_SIZE = 5 * 1024 * 1024
+
+@router.post("/")
+async def upload_file(file: UploadFile = File(...)):
+    """
+    Upload a single file. Saves it locally in a 'media/' directory.
+    If you configured S3 or GCS, replace the local save logic with your storage client.
+    """
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB.")
+    
+    # Ensure secure filename (prevent directory traversal)
+    ext = os.path.splitext(file.filename)[1] if file.filename else ""
+    safe_filename = f"{uuid.uuid4().hex}{ext}"
+    
+    # Save locally as an example
+    upload_dir = "media"
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, safe_filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not save file: {e}")
+        
+    return {
+        "filename": file.filename, 
+        "saved_as": safe_filename,
+        "size": file.size,
+        "url": f"/{file_path}"
+    }

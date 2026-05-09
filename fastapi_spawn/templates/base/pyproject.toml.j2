@@ -177,6 +177,12 @@ dependencies = [
 {% if "caching" in extras %}
     "fastapi-cache2[redis]>=0.2.1",
 {% endif %}
+{% if "admin" in extras %}
+    "sqladmin[full]>=0.16.1",
+{% endif %}
+{% if "pagination" in extras %}
+    "fastapi-pagination>=0.12.0",
+{% endif %}
 {% if "meilisearch" in extras %}
     "meilisearch>=0.30.0",
 {% endif %}
