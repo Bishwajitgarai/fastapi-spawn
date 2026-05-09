@@ -8,19 +8,24 @@ services:
 {% if (has_relational_db and db != "sqlite") or has_mongo or broker == "redis" or cache == "redis" or broker == "rabbitmq" %}
     depends_on:
 {% if has_relational_db and db == "postgresql" %}
-      - postgres
+      postgres:
+        condition: service_healthy
 {% endif %}
 {% if has_relational_db and db == "mysql" %}
-      - mysql
+      mysql:
+        condition: service_healthy
 {% endif %}
 {% if has_mongo %}
-      - mongodb
+      mongodb:
+        condition: service_healthy
 {% endif %}
 {% if broker == "redis" or cache == "redis" %}
-      - redis
+      redis:
+        condition: service_healthy
 {% endif %}
 {% if broker == "rabbitmq" %}
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 {% endif %}
 {% endif %}
     volumes:
