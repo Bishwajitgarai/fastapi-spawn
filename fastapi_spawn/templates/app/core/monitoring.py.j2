@@ -1,0 +1,46 @@
+"""Monitoring setup — Sentry and/or Prometheus."""
+
+from __future__ import annotations
+
+from app.core.config import settings
+
+{% if has_sentry %}
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+
+def init_sentry() -> None:
+    """Initialize Sentry SDK. Call once at app startup."""
+    if not settings.SENTRY_DSN:
+        return
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=settings.ENVIRONMENT,
+        traces_sample_rate=0.2,           # 20% of transactions traced
+        profiles_sample_rate=0.1,
+        integrations=[
+            FastApiIntegration(transaction_style="endpoint"),
+{% if has_relational_db and orm == "sqlalchemy" %}
+            SqlalchemyIntegration(),
+{% endif %}
+        ],
+        send_default_pii=False,
+    )
+
+{% endif %}
+{% if has_prometheus %}
+from prometheus_fastapi_instrumentator import Instrumentator
+
+
+def init_prometheus(app) -> None:  # type: ignore[no-untyped-def]
+    """Attach Prometheus instrumentator. Call once after app creation."""
+    Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        should_respect_env_var=True,
+        should_instrument_requests_inprogress=True,
+        excluded_handlers=["/health", "/metrics"],
+    ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+{% endif %}

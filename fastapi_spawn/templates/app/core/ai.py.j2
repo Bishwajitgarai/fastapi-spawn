@@ -1,76 +1,143 @@
-"""AI client utilities for {{ project_name }}."""
+"""AI / LLM client utilities for {{ project_name }}."""
 
 from __future__ import annotations
 
 from functools import lru_cache
 
+from app.core.config import settings
+
 {% if ai == "openai" %}
 from openai import AsyncOpenAI
-
-from app.core.config import settings
 
 
 @lru_cache
 def get_openai_client() -> AsyncOpenAI:
-    """Return a cached AsyncOpenAI client."""
     return AsyncOpenAI(
         api_key=settings.OPENAI_API_KEY,
-        base_url=settings.OPENAI_BASE_URL or None,  # None = default api.openai.com
+        base_url=settings.OPENAI_BASE_URL or None,
     )
 
 
-async def chat_completion(
-    messages: list[dict],
-    model: str | None = None,
-    temperature: float = 0.7,
-    max_tokens: int = 1024,
-) -> str:
-    """Send a chat completion request and return the response text."""
-    client = get_openai_client()
-    response = await client.chat.completions.create(
-        model=model or settings.OPENAI_MODEL,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
+async def chat_completion(messages: list[dict], model: str | None = None, temperature: float = 0.7, max_tokens: int = 1024) -> str:
+    response = await get_openai_client().chat.completions.create(
+        model=model or settings.OPENAI_MODEL, messages=messages,
+        temperature=temperature, max_tokens=max_tokens,
     )
     return response.choices[0].message.content or ""
 
 
 async def get_embedding(text: str, model: str | None = None) -> list[float]:
-    """Return an embedding vector for the given text."""
-    client = get_openai_client()
-    response = await client.embeddings.create(
-        model=model or settings.OPENAI_EMBEDDING_MODEL,
-        input=text,
+    response = await get_openai_client().embeddings.create(
+        model=model or settings.OPENAI_EMBEDDING_MODEL, input=text,
     )
     return response.data[0].embedding
 
 {% elif ai == "anthropic" %}
 import anthropic
 
-from app.core.config import settings
-
 
 @lru_cache
 def get_anthropic_client() -> anthropic.AsyncAnthropic:
-    """Return a cached AsyncAnthropic client."""
     return anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 
-async def chat_completion(
-    messages: list[dict],
-    system: str = "You are a helpful assistant.",
-    model: str | None = None,
-    max_tokens: int = 1024,
-) -> str:
-    """Send a message to Claude and return the response text."""
-    client = get_anthropic_client()
-    response = await client.messages.create(
-        model=model or settings.ANTHROPIC_MODEL,
-        max_tokens=max_tokens,
-        system=system,
-        messages=messages,
+async def chat_completion(messages: list[dict], system: str = "You are a helpful assistant.", model: str | None = None, max_tokens: int = 1024) -> str:
+    response = await get_anthropic_client().messages.create(
+        model=model or settings.ANTHROPIC_MODEL, max_tokens=max_tokens,
+        system=system, messages=messages,
     )
     return response.content[0].text
+
+{% elif ai == "gemini" %}
+import google.generativeai as genai
+
+genai.configure(api_key=settings.GEMINI_API_KEY)
+
+
+async def chat_completion(prompt: str, model: str | None = None) -> str:
+    m = genai.GenerativeModel(model or settings.GEMINI_MODEL)
+    response = m.generate_content(prompt)
+    return response.text
+
+
+async def get_embedding(text: str) -> list[float]:
+    result = genai.embed_content(model="models/text-embedding-004", content=text)
+    return result["embedding"]
+
+{% elif ai == "ollama" %}
+import httpx
+
+
+async def chat_completion(messages: list[dict], model: str | None = None, temperature: float = 0.7) -> str:
+    async with httpx.AsyncClient(timeout=120) as client:
+        r = await client.post(
+            f"{settings.ollama_url}/api/chat",
+            json={"model": model or settings.OLLAMA_MODEL, "messages": messages,
+                  "stream": False, "options": {"temperature": temperature}},
+        )
+        r.raise_for_status()
+        return r.json()["message"]["content"]
+
+
+async def get_embedding(text: str, model: str = "nomic-embed-text") -> list[float]:
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(f"{settings.ollama_url}/api/embeddings", json={"model": model, "prompt": text})
+        r.raise_for_status()
+        return r.json()["embedding"]
+
+{% elif ai == "langchain" %}
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+
+
+@lru_cache
+def get_llm() -> ChatOpenAI:
+    """Return a cached LangChain ChatOpenAI instance."""
+    return ChatOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        model=settings.OPENAI_MODEL,
+        base_url=settings.OPENAI_BASE_URL or None,
+        temperature=0.7,
+    )
+
+
+async def chat_completion(user_message: str, system: str = "You are a helpful assistant.") -> str:
+    """Single-turn chat completion via LangChain."""
+    llm = get_llm()
+    messages = [SystemMessage(content=system), HumanMessage(content=user_message)]
+    response = await llm.ainvoke(messages)
+    return response.content
+
+
+async def get_embedding(text: str) -> list[float]:
+    """Generate an embedding using LangChain OpenAI embeddings."""
+    from langchain_openai import OpenAIEmbeddings
+    embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY, model=settings.OPENAI_EMBEDDING_MODEL)
+    return await embeddings.aembed_query(text)
+
+{% elif ai == "llamaindex" %}
+from llama_index.core import Settings as LlamaSettings
+from llama_index.llms.openai import OpenAI
+from llama_index.embeddings.openai import OpenAIEmbedding
+
+
+def configure_llama_index() -> None:
+    """Configure LlamaIndex global settings. Call once at startup."""
+    LlamaSettings.llm = OpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        model=settings.OPENAI_MODEL,
+        api_base=settings.OPENAI_BASE_URL or None,
+    )
+    LlamaSettings.embed_model = OpenAIEmbedding(
+        api_key=settings.OPENAI_API_KEY,
+        model=settings.OPENAI_EMBEDDING_MODEL,
+    )
+
+
+async def query_index(index, question: str, similarity_top_k: int = 5) -> str:
+    """Query a LlamaIndex VectorStoreIndex."""
+    query_engine = index.as_query_engine(similarity_top_k=similarity_top_k)
+    response = await query_engine.aquery(question)
+    return str(response)
 
 {% endif %}

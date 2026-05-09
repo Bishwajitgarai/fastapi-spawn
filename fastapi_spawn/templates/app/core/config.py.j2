@@ -19,18 +19,28 @@ class Settings(BaseSettings):
 
     # ── App ────────────────────────────────────────────────────────────────
     APP_NAME: str = "{{ project_name }}"
-    APP_ENV: str = "development"
-    DEBUG: bool = False
+    APP_HOST: str = "0.0.0.0"    # override in .env — e.g. 127.0.0.1
+    APP_PORT: int = 8000          # override in .env — e.g. 9000
+    ENVIRONMENT: str = "dev"
     API_V1_PREFIX: str = "/api/v1"
     SECRET_KEY: str = "change-me"
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
 
+    @property
+    def DEBUG(self) -> bool:
+        return self.ENVIRONMENT.lower() in ("dev", "development", "local")
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: Any) -> list[str]:
+    def assemble_cors(cls, v: Any) -> list[str]:
         if isinstance(v, str):
             return [o.strip() for o in v.split(",")]
         return v
+
+    # ── Logging ────────────────────────────────────────────────────────────
+    LOG_LEVEL: str = "INFO"
+    LOG_DIR: str = "logs"
+    LOG_BACKUP_DAYS: int = 30
 
 {% if db == "postgresql" %}
     # ── PostgreSQL ─────────────────────────────────────────────────────────
@@ -82,10 +92,7 @@ class Settings(BaseSettings):
     @property
     def mongodb_url(self) -> str:
         if self.MONGODB_USER and self.MONGODB_PASSWORD:
-            return (
-                f"mongodb://{self.MONGODB_USER}:{self.MONGODB_PASSWORD}"
-                f"@{self.MONGODB_HOST}:{self.MONGODB_PORT}"
-            )
+            return f"mongodb://{self.MONGODB_USER}:{self.MONGODB_PASSWORD}@{self.MONGODB_HOST}:{self.MONGODB_PORT}"
         return f"mongodb://{self.MONGODB_HOST}:{self.MONGODB_PORT}"
 
 {% endif %}
@@ -113,10 +120,7 @@ class Settings(BaseSettings):
 
     @property
     def rabbitmq_url(self) -> str:
-        return (
-            f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}"
-            f"@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
-        )
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
 
 {% endif %}
 {% if broker == "kafka" %}
@@ -130,12 +134,12 @@ class Settings(BaseSettings):
 
 {% endif %}
 {% if has_s3 %}
-    # ── AWS S3 ─────────────────────────────────────────────────────────────
+    # ── AWS S3 / MinIO ─────────────────────────────────────────────────────
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_REGION: str = "us-east-1"
     AWS_S3_BUCKET: str = "{{ slug }}-bucket"
-    AWS_S3_ENDPOINT_URL: str = ""  # Override for MinIO / LocalStack
+    AWS_S3_ENDPOINT_URL: str = ""   # Set to http://localhost:9000 for MinIO
 
 {% endif %}
 {% if has_auth %}
@@ -150,23 +154,102 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
-    OPENAI_BASE_URL: str = ""  # Override for Azure OpenAI, LM Studio, local endpoints
+    OPENAI_BASE_URL: str = ""   # Leave blank for api.openai.com; override for Azure / LM Studio
 
 {% elif ai == "anthropic" %}
     # ── Anthropic ──────────────────────────────────────────────────────────
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
 
+{% elif ai == "gemini" %}
+    # ── Google Gemini ──────────────────────────────────────────────────────
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-1.5-pro"
+
+{% elif ai == "ollama" %}
+    # ── Ollama (local) ─────────────────────────────────────────────────────
+    OLLAMA_HOST: str = "localhost"
+    OLLAMA_PORT: str = "11434"
+    OLLAMA_MODEL: str = "llama3"
+
+    @property
+    def ollama_url(self) -> str:
+        return f"http://{self.OLLAMA_HOST}:{self.OLLAMA_PORT}"
+
 {% endif %}
+{% if has_sentry %}
+    # ── Sentry ─────────────────────────────────────────────────────────────
+    SENTRY_DSN: str = ""
 
-    # ── Helpers ────────────────────────────────────────────────────────────
-    @property
-    def is_development(self) -> bool:
-        return self.APP_ENV == "development"
+{% endif %}
+{% if has_email %}
+{% if email == "sendgrid" %}
+    # ── SendGrid ───────────────────────────────────────────────────────────
+    SENDGRID_API_KEY: str = ""
+    SENDGRID_FROM_EMAIL: str = "noreply@example.com"
+
+{% elif email == "smtp" %}
+    # ── SMTP ───────────────────────────────────────────────────────────────
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: str = "587"
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@example.com"
+    SMTP_STARTTLS: bool = True
+    SMTP_SSL: bool = False
+
+{% elif email == "ses" %}
+    # ── AWS SES ────────────────────────────────────────────────────────────
+    SES_FROM_EMAIL: str = "noreply@example.com"
+    # Uses AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION above
+
+{% endif %}
+{% endif %}
+{% if notify == "slack" %}
+    # ── Slack ──────────────────────────────────────────────────────────────
+    SLACK_WEBHOOK_URL: str = ""
+
+{% elif notify == "discord" %}
+    # ── Discord ────────────────────────────────────────────────────────────
+    DISCORD_WEBHOOK_URL: str = ""
+
+{% endif %}
+{% if vector_db == "qdrant" %}
+    # ── Qdrant ─────────────────────────────────────────────────────────────
+    QDRANT_HOST: str = "localhost"
+    QDRANT_PORT: str = "6333"
+    QDRANT_API_KEY: str = ""
 
     @property
-    def is_production(self) -> bool:
-        return self.APP_ENV == "production"
+    def qdrant_url(self) -> str:
+        return f"http://{self.QDRANT_HOST}:{self.QDRANT_PORT}"
+
+{% elif vector_db == "pinecone" %}
+    # ── Pinecone ───────────────────────────────────────────────────────────
+    PINECONE_API_KEY: str = ""
+    PINECONE_INDEX_NAME: str = "{{ slug }}-index"
+
+{% elif vector_db == "elasticsearch" %}
+    # ── Elasticsearch ──────────────────────────────────────────────────────
+    ELASTICSEARCH_HOST: str = "localhost"
+    ELASTICSEARCH_PORT: str = "9200"
+    ELASTICSEARCH_API_KEY: str = ""
+
+    @property
+    def elasticsearch_url(self) -> str:
+        return f"http://{self.ELASTICSEARCH_HOST}:{self.ELASTICSEARCH_PORT}"
+
+{% endif %}
+{% if log_dest == "cloudwatch" %}
+    # ── CloudWatch Logs ────────────────────────────────────────────────────
+    # Uses AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION
+
+{% elif log_dest == "datadog" %}
+    # ── Datadog ────────────────────────────────────────────────────────────
+    DD_API_KEY: str = ""
+    DD_SITE: str = "datadoghq.com"
+
+{% endif %}
 
 
 @lru_cache

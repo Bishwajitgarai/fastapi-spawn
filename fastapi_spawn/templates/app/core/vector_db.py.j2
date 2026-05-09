@@ -1,0 +1,118 @@
+"""Vector database client for {{ project_name }}."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+from app.core.config import settings
+
+{% if vector_db == "qdrant" %}
+from qdrant_client import AsyncQdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
+
+
+@lru_cache
+def get_qdrant() -> AsyncQdrantClient:
+    return AsyncQdrantClient(url=settings.qdrant_url, api_key=settings.QDRANT_API_KEY or None)
+
+
+async def ensure_collection(collection: str, vector_size: int, distance: Distance = Distance.COSINE) -> None:
+    client = get_qdrant()
+    existing = [c.name for c in (await client.get_collections()).collections]
+    if collection not in existing:
+        await client.create_collection(collection_name=collection, vectors_config=VectorParams(size=vector_size, distance=distance))
+
+
+async def upsert_vectors(collection: str, points: list[PointStruct]) -> None:
+    await get_qdrant().upsert(collection_name=collection, points=points)
+
+
+async def search_vectors(collection: str, query_vector: list[float], top_k: int = 5) -> list:
+    return await get_qdrant().search(collection_name=collection, query_vector=query_vector, limit=top_k)
+
+{% elif vector_db == "chroma" %}
+import chromadb
+from chromadb.config import Settings as ChromaSettings
+
+
+@lru_cache
+def get_chroma_client() -> chromadb.ClientAPI:
+    """Return a persistent ChromaDB client stored at ./chroma_data."""
+    return chromadb.PersistentClient(
+        path="./chroma_data",
+        settings=ChromaSettings(anonymized_telemetry=False),
+    )
+
+
+def get_or_create_collection(name: str, metadata: dict | None = None) -> chromadb.Collection:
+    return get_chroma_client().get_or_create_collection(name=name, metadata=metadata or {"hnsw:space": "cosine"})
+
+
+def upsert_documents(collection_name: str, ids: list[str], documents: list[str], embeddings: list[list[float]] | None = None, metadatas: list[dict] | None = None) -> None:
+    col = get_or_create_collection(collection_name)
+    col.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
+
+
+def query_collection(collection_name: str, query_texts: list[str], n_results: int = 5) -> dict:
+    col = get_or_create_collection(collection_name)
+    return col.query(query_texts=query_texts, n_results=n_results)
+
+{% elif vector_db == "pinecone" %}
+from pinecone import Pinecone
+
+
+@lru_cache
+def get_pinecone_index(index_name: str | None = None):
+    pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+    return pc.Index(index_name or settings.PINECONE_INDEX_NAME)
+
+
+async def upsert_vectors(vectors: list[tuple[str, list[float], dict]]) -> None:
+    get_pinecone_index().upsert(vectors=[(id_, emb, meta) for id_, emb, meta in vectors])
+
+
+async def search_vectors(query_vector: list[float], top_k: int = 5, filter: dict | None = None) -> list:
+    return get_pinecone_index().query(vector=query_vector, top_k=top_k, filter=filter, include_metadata=True).matches
+
+{% elif vector_db == "supabase" %}
+from supabase import create_client, Client
+
+
+@lru_cache
+def get_supabase() -> Client:
+    """Return a cached Supabase client (uses pgvector under the hood)."""
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+
+
+async def match_documents(query_embedding: list[float], match_count: int = 5, table: str = "documents") -> list:
+    """
+    Call a Supabase RPC function for vector similarity search.
+    Requires a 'match_documents' function in your Supabase project.
+    """
+    result = get_supabase().rpc(
+        "match_documents",
+        {"query_embedding": query_embedding, "match_count": match_count},
+    ).execute()
+    return result.data
+
+{% elif vector_db == "elasticsearch" %}
+from elasticsearch import AsyncElasticsearch
+
+
+@lru_cache
+def get_es() -> AsyncElasticsearch:
+    return AsyncElasticsearch(hosts=[settings.elasticsearch_url], api_key=settings.ELASTICSEARCH_API_KEY or None)
+
+
+async def index_document(index: str, doc_id: str, body: dict) -> None:
+    await get_es().index(index=index, id=doc_id, document=body)
+
+
+async def search_knn(index: str, field: str, query_vector: list[float], top_k: int = 5) -> list:
+    result = await get_es().search(
+        index=index,
+        knn={"field": field, "query_vector": query_vector, "k": top_k, "num_candidates": top_k * 10},
+    )
+    return result["hits"]["hits"]
+
+{% endif %}

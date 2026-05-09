@@ -1,0 +1,98 @@
+"""Strawberry GraphQL schema and router for {{ project_name }}."""
+
+from __future__ import annotations
+
+from typing import Optional
+
+import strawberry
+from strawberry.fastapi import GraphQLRouter
+from strawberry.scalars import JSON
+
+
+# ── Types ──────────────────────────────────────────────────────────────────
+
+@strawberry.type
+class HealthType:
+    status: str
+    service: str
+    version: str
+
+
+@strawberry.type
+class MessageType:
+    id: str
+    content: str
+    author: str
+
+
+@strawberry.input
+class CreateMessageInput:
+    content: str
+    author: str
+
+
+# ── Query ──────────────────────────────────────────────────────────────────
+
+@strawberry.type
+class Query:
+    @strawberry.field(description="Health check for GraphQL layer")
+    def health(self) -> HealthType:
+        return HealthType(status="ok", service="{{ project_name }}", version="0.1.0")
+
+    @strawberry.field(description="List messages (stub — wire to DB)")
+    def messages(self, limit: int = 10) -> list[MessageType]:
+        # TODO: Replace with real DB query
+        return [
+            MessageType(id="1", content="Hello from GraphQL!", author="system"),
+        ]
+
+    @strawberry.field(description="Get a message by ID (stub)")
+    def message(self, id: str) -> Optional[MessageType]:
+        # TODO: Replace with real DB query
+        if id == "1":
+            return MessageType(id="1", content="Hello from GraphQL!", author="system")
+        return None
+
+
+# ── Mutation ───────────────────────────────────────────────────────────────
+
+@strawberry.type
+class Mutation:
+    @strawberry.mutation(description="Create a new message (stub — wire to DB)")
+    def create_message(self, input: CreateMessageInput) -> MessageType:
+        import uuid
+        # TODO: Replace with real DB insert
+        return MessageType(id=str(uuid.uuid4()), content=input.content, author=input.author)
+
+
+# ── Subscription ───────────────────────────────────────────────────────────
+
+import asyncio
+from typing import AsyncGenerator
+
+
+@strawberry.type
+class Subscription:
+    @strawberry.subscription(description="Subscribe to new messages (requires Redis pub/sub in production)")
+    async def message_added(self) -> AsyncGenerator[MessageType, None]:
+        """Stub subscription — fires a fake message every 3 seconds."""
+        import uuid
+        while True:
+            await asyncio.sleep(3)
+            yield MessageType(id=str(uuid.uuid4()), content="Live update!", author="system")
+
+
+# ── Schema & Router ────────────────────────────────────────────────────────
+
+schema = strawberry.Schema(
+    query=Query,
+    mutation=Mutation,
+    subscription=Subscription,
+)
+
+# Mount with: app.include_router(graphql_router, prefix="/graphql")
+graphql_router = GraphQLRouter(
+    schema,
+    graphiql=True,          # GraphiQL IDE at /graphql — disable in production
+    subscription_protocols=["graphql-transport-ws", "graphql-ws"],
+)

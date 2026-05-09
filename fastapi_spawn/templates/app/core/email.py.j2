@@ -1,0 +1,87 @@
+"""Email utilities for {{ project_name }}."""
+
+from __future__ import annotations
+
+from app.core.config import settings
+
+{% if email == "sendgrid" %}
+import sendgrid
+from sendgrid.helpers.mail import Mail
+
+
+async def send_email(
+    to: str,
+    subject: str,
+    html_content: str,
+    from_email: str | None = None,
+) -> bool:
+    """Send an email via SendGrid. Returns True on success."""
+    sg = sendgrid.SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
+    message = Mail(
+        from_email=from_email or settings.SENDGRID_FROM_EMAIL,
+        to_emails=to,
+        subject=subject,
+        html_content=html_content,
+    )
+    response = sg.send(message)
+    return response.status_code in (200, 202)
+
+{% elif email == "smtp" %}
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+
+_mail_config = ConnectionConfig(
+    MAIL_USERNAME=settings.SMTP_USER,
+    MAIL_PASSWORD=settings.SMTP_PASSWORD,
+    MAIL_FROM=settings.SMTP_FROM_EMAIL,
+    MAIL_PORT=int(settings.SMTP_PORT),
+    MAIL_SERVER=settings.SMTP_HOST,
+    MAIL_STARTTLS=settings.SMTP_STARTTLS,
+    MAIL_SSL_TLS=settings.SMTP_SSL,
+    USE_CREDENTIALS=True,
+)
+
+_mail = FastMail(_mail_config)
+
+
+async def send_email(to: str, subject: str, html_content: str) -> None:
+    """Send an email via SMTP."""
+    message = MessageSchema(
+        subject=subject,
+        recipients=[to],
+        body=html_content,
+        subtype=MessageType.html,
+    )
+    await _mail.send_message(message)
+
+{% elif email == "ses" %}
+import boto3
+from botocore.exceptions import ClientError
+
+
+async def send_email(
+    to: str,
+    subject: str,
+    html_content: str,
+    from_email: str | None = None,
+) -> bool:
+    """Send an email via AWS SES. Returns True on success."""
+    client = boto3.client(
+        "ses",
+        region_name=settings.AWS_REGION,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    )
+    try:
+        client.send_email(
+            Source=from_email or settings.SES_FROM_EMAIL,
+            Destination={"ToAddresses": [to]},
+            Message={
+                "Subject": {"Data": subject, "Charset": "UTF-8"},
+                "Body": {"Html": {"Data": html_content, "Charset": "UTF-8"}},
+            },
+        )
+        return True
+    except ClientError:
+        return False
+
+{% endif %}

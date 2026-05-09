@@ -1,0 +1,67 @@
+"""WebSocket endpoints for {{ project_name }}."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from app.core.ws_manager import manager
+from app.core.logger import logger
+
+router = APIRouter(prefix="/ws")
+
+
+@router.websocket("/connect")
+async def ws_connect(websocket: WebSocket) -> None:
+    """
+    General-purpose WebSocket endpoint.
+    Connect: ws://host/api/v1/ws/connect
+
+    Protocol:
+      Client → Server:  {"type": "message", "data": "hello"}
+      Server → Client:  {"type": "ack", "client_id": "...", "data": "..."}
+    """
+    client_id = await manager.connect(websocket)
+    logger.info("WS connected: %s  total=%d", client_id, manager.connected_count)
+
+    try:
+        await manager.send_personal(
+            {"type": "connected", "client_id": client_id, "total": manager.connected_count},
+            client_id,
+        )
+        while True:
+            data = await websocket.receive_json()
+            msg_type = data.get("type", "message")
+
+            if msg_type == "broadcast":
+                # Relay to all clients
+                await manager.broadcast({"type": "broadcast", "from": client_id, "data": data.get("data")})
+            elif msg_type == "ping":
+                await manager.send_personal({"type": "pong"}, client_id)
+            else:
+                # Echo back with ack
+                await manager.send_personal(
+                    {"type": "ack", "client_id": client_id, "received": data}, client_id
+                )
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        logger.info("WS disconnected: %s  total=%d", client_id, manager.connected_count)
+        await manager.broadcast({"type": "user_left", "client_id": client_id})
+
+
+@router.websocket("/connect/{room_id}")
+async def ws_room(websocket: WebSocket, room_id: str) -> None:
+    """
+    Room-scoped WebSocket endpoint.
+    Connect: ws://host/api/v1/ws/connect/{room_id}
+    """
+    client_id = await manager.connect(websocket, client_id=f"{room_id}:{websocket.headers.get('sec-websocket-key', 'anon')[:8]}")
+    logger.info("WS room=%s client=%s", room_id, client_id)
+
+    try:
+        await manager.send_personal({"type": "joined", "room": room_id, "client_id": client_id}, client_id)
+        while True:
+            data = await websocket.receive_json()
+            await manager.broadcast({"type": "room_message", "room": room_id, "from": client_id, "data": data.get("data")})
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        await manager.broadcast({"type": "user_left", "room": room_id, "client_id": client_id})

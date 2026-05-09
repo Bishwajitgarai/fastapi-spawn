@@ -141,7 +141,7 @@ class ProjectGenerator:
         core.mkdir()
         self._render_to(core / "__init__.py", "app/__init__.py.j2")
         self._render_to(core / "config.py", "app/core/config.py.j2")
-        self._render_to(core / "logging.py", "app/core/logging.py.j2")
+        self._render_to(core / "logger.py", "app/core/logger.py.j2")
         self._render_to(core / "exceptions.py", "app/core/exceptions.py.j2")
         if self.config.has_auth:
             self._render_to(core / "security.py", "app/core/security.py.j2")
@@ -149,6 +149,21 @@ class ProjectGenerator:
             self._render_to(core / "storage.py", "app/core/storage.py.j2")
         if self.config.has_ai:
             self._render_to(core / "ai.py", "app/core/ai.py.j2")
+        if self.config.has_monitoring:
+            self._render_to(core / "monitoring.py", "app/core/monitoring.py.j2")
+        if self.config.has_email:
+            self._render_to(core / "email.py", "app/core/email.py.j2")
+        if self.config.has_notify:
+            self._render_to(core / "notifications.py", "app/core/notifications.py.j2")
+        if self.config.has_vector_db:
+            self._render_to(core / "vector_db.py", "app/core/vector_db.py.j2")
+
+        # middleware/
+        mw = pkg / "middleware"
+        mw.mkdir()
+        self._render_to(mw / "__init__.py", "app/middleware/__init__.py.j2")
+        self._render_to(mw / "request_logger.py", "app/middleware/request_logger.py.j2")
+        self._render_to(mw / "rate_limit.py", "app/middleware/rate_limit.py.j2")
 
         # api/
         api = pkg / "api"
@@ -161,6 +176,11 @@ class ProjectGenerator:
         self._render_to(v1 / "health.py", "app/api/v1/health.py.j2")
         if self.config.has_auth:
             self._render_to(v1 / "auth.py", "app/api/v1/auth.py.j2")
+        if self.config.has_websockets:
+            self._render_to(v1 / "ws.py", "app/api/v1/ws.py.j2")
+            self._render_to(core / "ws_manager.py", "app/core/ws_manager.py.j2")
+        if self.config.has_graphql:
+            self._render_to(api / "graphql.py", "app/api/graphql.py.j2")
 
         # db/ (only when a real database is chosen)
         if self.config.db.value != "none":
@@ -175,13 +195,27 @@ class ProjectGenerator:
             d.mkdir()
             self._render_to(d / "__init__.py", "app/__init__.py.j2")
 
+        # frontend/ — static showcase UI
+        frontend_dir = pkg / "frontend"
+        frontend_dir.mkdir()
+        self._render_to(frontend_dir / "index.html", "app/frontend/index.html.j2")
+
+        # logs/ directory (for file-based logging)
+        if self.config.has_log_file:
+            (root / "logs").mkdir(exist_ok=True)
+            (root / "logs" / ".gitkeep").write_text("", encoding="utf-8")
+
+
     def _generate_tasks(self, root: Path) -> None:
         """Root-level tasks/ directory."""
         tasks = root / "tasks"
         tasks.mkdir()
         self._render_to(tasks / "__init__.py", "app/__init__.py.j2")
-        self._render_to(tasks / "celery_app.py", "tasks/celery_app.py.j2")
-        self._render_to(tasks / "sample_tasks.py", "tasks/sample_tasks.py.j2")
+        if self.config.broker.value in ("redis", "rabbitmq"):
+            self._render_to(tasks / "celery_app.py", "tasks/celery_app.py.j2")
+            self._render_to(tasks / "sample_tasks.py", "tasks/sample_tasks.py.j2")
+        if self.config.broker.value == "arq":
+            self._render_to(tasks / "arq_worker.py", "tasks/arq_worker.py.j2")
 
     def _generate_alembic(self, root: Path) -> None:
         """Alembic migration setup at project root."""

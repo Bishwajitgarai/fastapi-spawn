@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ project_name }} — API Dashboard</title>
+  <style>
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --border:  #30363d;
+      --accent:  #00c6ff;
+      --green:   #3fb950;
+      --red:     #f85149;
+      --yellow:  #d29922;
+      --text:    #e6edf3;
+      --muted:   #8b949e;
+      --radius:  10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .logo {
+      font-size: 1.4rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--accent), #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+    .badge.green  { color: var(--green);  border-color: var(--green);  background: rgba(63,185,80,.10); }
+    .badge.red    { color: var(--red);    border-color: var(--red);    background: rgba(248,81,73,.10); }
+    .badge.yellow { color: var(--yellow); border-color: var(--yellow); background: rgba(210,153,34,.10); }
+
+    /* ── Layout ── */
+    main { max-width: 1100px; margin: 40px auto; padding: 0 24px; display: grid; gap: 24px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+    .card h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── Status grid ── */
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+    }
+    .stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .stat .label { font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; }
+    .stat .value { font-size: 1.2rem; font-weight: 700; color: var(--text); font-family: monospace; }
+
+    /* ── Endpoints table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { text-align: left; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: .06em; padding: 0 12px 12px 0; }
+    td { padding: 10px 12px 10px 0; border-top: 1px solid var(--border); vertical-align: middle; }
+    .method {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      min-width: 52px;
+      text-align: center;
+    }
+    .get    { background: rgba(63,185,80,.15);  color: var(--green); }
+    .post   { background: rgba(0,198,255,.15);  color: var(--accent); }
+    .delete { background: rgba(248,81,73,.15);  color: var(--red); }
+    .put    { background: rgba(210,153,34,.15); color: var(--yellow); }
+    .ws     { background: rgba(167,139,250,.15); color: #a78bfa; }
+    .path   { font-family: monospace; color: var(--text); }
+    td a.path { text-decoration: none; }
+    td a.path:hover { text-decoration: underline; color: var(--accent); }
+
+    /* ── WS Test ── */
+    #ws-section { display: none; }
+    .ws-log {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      height: 180px;
+      overflow-y: auto;
+      color: var(--muted);
+    }
+    .ws-log .msg-in  { color: var(--green); }
+    .ws-log .msg-out { color: var(--accent); }
+    .ws-log .msg-err { color: var(--red); }
+    .row { display: flex; gap: 10px; margin-top: 12px; }
+    input[type=text] {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.9rem;
+    }
+    button {
+      background: var(--accent); color: #000; border: none;
+      border-radius: 6px; padding: 8px 18px; cursor: pointer;
+      font-weight: 600; font-size: 0.9rem; transition: opacity .15s;
+    }
+    button:hover { opacity: .85; }
+    button.danger { background: var(--red); color: #fff; }
+
+    /* ── GraphQL badge ── */
+    .graphql-link {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,198,255,.08); border: 1px solid rgba(0,198,255,.3);
+      border-radius: 8px; padding: 10px 16px; text-decoration: none;
+      color: var(--accent); font-size: 0.9rem; font-weight: 600;
+      transition: background .15s;
+    }
+    .graphql-link:hover { background: rgba(0,198,255,.15); }
+
+    /* ── Footer ── */
+    footer { text-align: center; color: var(--muted); font-size: 0.78rem; padding: 24px; }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">⚡ {{ project_name }}</div>
+    <div style="font-size:.75rem;color:var(--muted);margin-top:3px;">API Dashboard</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span id="health-badge" class="badge yellow">Checking…</span>
+    <span style="font-size:.78rem;color:var(--muted);" id="env-label">env: <strong>{{ '{{ ENV }}' }}</strong></span>
+  </div>
+</header>
+
+<main>
+
+  <!-- Status grid -->
+  <div class="card">
+    <h2>System Status</h2>
+    <div class="status-grid">
+      <div class="stat"><div class="label">Service</div><div class="value" id="stat-name">—</div></div>
+      <div class="stat"><div class="label">Version</div><div class="value" id="stat-version">—</div></div>
+      <div class="stat"><div class="label">Environment</div><div class="value" id="stat-env">—</div></div>
+      <div class="stat"><div class="label">Status</div><div class="value" id="stat-status">—</div></div>
+      <div class="stat"><div class="label">Uptime</div><div class="value" id="stat-uptime">—</div></div>
+      <div class="stat"><div class="label">Response</div><div class="value" id="stat-response">—ms</div></div>
+    </div>
+  </div>
+
+  <!-- Endpoints -->
+  <div class="card">
+    <h2>Available Endpoints</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method get">GET</span></td>  <td><a class="path" href="/api/v1/health" target="_blank">/api/v1/health</a></td><td style="color:var(--muted)">Health check</td></tr>
+        <tr><td><span class="method get">GET</span></td>  <td><a class="path" href="/api/v1/health/readiness" target="_blank">/api/v1/health/readiness</a></td><td style="color:var(--muted)">Readiness probe</td></tr>
+        <tr><td><span class="method get">GET</span></td>  <td><a class="path" href="/api/v1/health/liveness" target="_blank">/api/v1/health/liveness</a></td><td style="color:var(--muted)">Liveness probe</td></tr>
+        <tr><td><span class="method get">GET</span></td>  <td><a class="path" href="/docs" target="_blank">/docs</a></td><td style="color:var(--muted)">Swagger UI</td></tr>
+        <tr><td><span class="method get">GET</span></td>  <td><a class="path" href="/redoc" target="_blank">/redoc</a></td><td style="color:var(--muted)">ReDoc</td></tr>
+        {% if has_auth %}
+        <tr><td><span class="method post">POST</span></td><td class="path">/api/v1/auth/login</td><td style="color:var(--muted)">Get access token</td></tr>
+        <tr><td><span class="method post">POST</span></td><td class="path">/api/v1/auth/refresh</td><td style="color:var(--muted)">Refresh token</td></tr>
+        {% endif %}
+        {% if has_prometheus %}
+        <tr><td><span class="method get">GET</span></td>  <td><a class="path" href="/metrics" target="_blank">/metrics</a></td><td style="color:var(--muted)">Prometheus metrics</td></tr>
+        {% endif %}
+        {% if has_websockets %}
+        <tr><td><span class="method ws">WS</span></td>   <td class="path">/api/v1/ws/connect</td><td style="color:var(--muted)">WebSocket — general</td></tr>
+        <tr><td><span class="method ws">WS</span></td>   <td class="path">/api/v1/ws/connect/{room_id}</td><td style="color:var(--muted)">WebSocket — room</td></tr>
+        {% endif %}
+        {% if has_graphql %}
+        <tr><td><span class="method post">POST</span></td><td><a class="path" href="/graphql" target="_blank">/graphql</a></td><td style="color:var(--muted)">GraphQL API + GraphiQL IDE</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if has_graphql %}
+  <!-- GraphQL shortcut -->
+  <div class="card" style="padding:18px 24px;">
+    <h2>GraphQL</h2>
+    <a class="graphql-link" href="/graphql" target="_blank">
+      <svg width="18" height="18" viewBox="0 0 400 400" fill="none"><circle cx="200" cy="200" r="190" stroke="#e10098" stroke-width="20"/><path d="M200 50 L350 290 L50 290 Z" fill="none" stroke="#e10098" stroke-width="20"/></svg>
+      Open GraphiQL IDE →
+    </a>
+    <p style="color:var(--muted);font-size:.82rem;margin-top:10px;">Explore your API interactively. Subscriptions supported via <code>graphql-transport-ws</code>.</p>
+  </div>
+  {% endif %}
+
+  {% if has_websockets %}
+  <!-- WebSocket tester -->
+  <div class="card" id="ws-section">
+    <h2>WebSocket Test</h2>
+    <div class="ws-log" id="ws-log"><span style="color:var(--muted)">Not connected.</span></div>
+    <div class="row">
+      <input type="text" id="ws-msg" placeholder='{"type":"ping"} or any JSON' />
+      <button onclick="wsSend()">Send</button>
+      <button id="ws-btn" onclick="wsToggle()">Connect</button>
+    </div>
+  </div>
+  {% endif %}
+
+</main>
+
+<footer>
+  Built with <a href="https://pypi.org/project/fastapi-spawn/" target="_blank">fastapi-spawn</a> &nbsp;·&nbsp;
+  <a href="/docs" target="_blank">Swagger UI</a> &nbsp;·&nbsp;
+  <a href="/redoc" target="_blank">ReDoc</a>
+</footer>
+
+<script>
+  // ── Health polling ─────────────────────────────────────────────────────────
+  const startedAt = Date.now();
+  async function checkHealth() {
+    const t0 = performance.now();
+    try {
+      const r = await fetch('/api/v1/health');
+      const ms = (performance.now() - t0).toFixed(0);
+      const data = await r.json();
+      document.getElementById('stat-name').textContent    = data.service   ?? '{{ project_name }}';
+      document.getElementById('stat-version').textContent = data.version   ?? '—';
+      document.getElementById('stat-env').textContent     = data.environment ?? '—';
+      document.getElementById('stat-status').textContent  = data.status    ?? 'ok';
+      document.getElementById('stat-response').textContent = ms + 'ms';
+      document.getElementById('env-label').innerHTML = `env: <strong>${data.environment ?? '—'}</strong>`;
+      const badge = document.getElementById('health-badge');
+      badge.textContent = r.ok ? '● Healthy' : '● Degraded';
+      badge.className   = 'badge ' + (r.ok ? 'green' : 'yellow');
+    } catch {
+      const badge = document.getElementById('health-badge');
+      badge.textContent = '● Unreachable';
+      badge.className   = 'badge red';
+    }
+  }
+  function tick() {
+    const s = Math.floor((Date.now() - startedAt) / 1000);
+    const h = String(Math.floor(s / 3600)).padStart(2,'0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2,'0');
+    const ss = String(s % 60).padStart(2,'0');
+    document.getElementById('stat-uptime').textContent = `${h}:${m}:${ss}`;
+  }
+  checkHealth();
+  setInterval(checkHealth, 15000);
+  setInterval(tick, 1000);
+
+  {% if has_websockets %}
+  // ── WebSocket tester ───────────────────────────────────────────────────────
+  document.getElementById('ws-section').style.display = 'block';
+  let ws = null;
+  const log = document.getElementById('ws-log');
+
+  function logMsg(text, cls) {
+    const line = document.createElement('div');
+    line.className = cls;
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function wsToggle() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.close();
+    } else {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${proto}//${location.host}/api/v1/ws/connect`);
+      ws.onopen  = () => { logMsg('Connected ✓', 'msg-in'); document.getElementById('ws-btn').textContent = 'Disconnect'; document.getElementById('ws-btn').className = 'danger'; };
+      ws.onclose = () => { logMsg('Disconnected', 'msg-err'); document.getElementById('ws-btn').textContent = 'Connect'; document.getElementById('ws-btn').className = ''; };
+      ws.onerror = (e) => logMsg('Error: ' + e.type, 'msg-err');
+      ws.onmessage = (e) => { try { logMsg('← ' + JSON.stringify(JSON.parse(e.data)), 'msg-in'); } catch { logMsg('← ' + e.data, 'msg-in'); } };
+    }
+  }
+
+  function wsSend() {
+    const input = document.getElementById('ws-msg');
+    const val = input.value.trim();
+    if (!val || !ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(val);
+    logMsg('→ ' + val, 'msg-out');
+    input.value = '';
+  }
+  document.getElementById('ws-msg').addEventListener('keydown', e => { if (e.key === 'Enter') wsSend(); });
+  {% endif %}
+</script>
+
+</body>
+</html>

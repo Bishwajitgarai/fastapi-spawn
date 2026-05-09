@@ -1,0 +1,56 @@
+"""Arq async task queue worker for {{ project_name }}."""
+
+from __future__ import annotations
+
+import asyncio
+from arq import create_pool
+from arq.connections import RedisSettings
+
+from app.core.config import settings
+
+
+# ── Redis settings for Arq ────────────────────────────────────────────────
+
+def get_redis_settings() -> RedisSettings:
+    return RedisSettings(
+        host=settings.REDIS_HOST,
+        port=int(settings.REDIS_PORT),
+        password=settings.REDIS_PASSWORD or None,
+        database=int(settings.REDIS_DB),
+    )
+
+
+# ── Task definitions ───────────────────────────────────────────────────────
+
+async def sample_task(ctx: dict, name: str) -> str:
+    """A sample arq task. Replace with your business logic."""
+    await asyncio.sleep(1)  # simulate async work
+    return f"Hello, {name}!"
+
+
+async def send_email_task(ctx: dict, to: str, subject: str, body: str) -> dict:
+    """Stub email task — wire up your email provider here."""
+    # TODO: call app.core.email.send_email(to, subject, body)
+    return {"status": "queued", "to": to, "subject": subject}
+
+
+# ── Worker settings ────────────────────────────────────────────────────────
+
+class WorkerSettings:
+    """Arq worker configuration. Run with: arq tasks.arq_worker.WorkerSettings"""
+
+    functions = [sample_task, send_email_task]
+    redis_settings = get_redis_settings()
+    max_jobs = 10
+    job_timeout = 300       # seconds before a job is considered stuck
+    keep_result = 3600      # seconds to keep job results in Redis
+
+
+# ── Helper: enqueue a task from your FastAPI app ──────────────────────────
+
+async def enqueue(func_name: str, *args, **kwargs):
+    """Enqueue a task. Usage: await enqueue('sample_task', name='World')"""
+    pool = await create_pool(get_redis_settings())
+    job = await pool.enqueue_job(func_name, *args, **kwargs)
+    await pool.aclose()
+    return job
