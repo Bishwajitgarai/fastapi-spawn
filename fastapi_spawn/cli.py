@@ -272,7 +272,7 @@ def start(
         from fastapi_spawn.interactive import SPAWN_STYLE
         
         use_current = questionary.confirm(
-            "Do you want to generate files directly in the current directory?", default=False, style=SPAWN_STYLE
+            "Do you want to generate files directly in the current directory? (If no, a subfolder will be created)", default=False, style=SPAWN_STYLE
         ).unsafe_ask()
         
         if use_current:
@@ -391,7 +391,7 @@ def start(
     from fastapi_spawn.interactive import SPAWN_STYLE
     
     use_current = questionary.confirm(
-        "Do you want to generate files directly in the current directory?", default=False, style=SPAWN_STYLE
+        "Do you want to generate files directly in the current directory? (If no, a subfolder will be created)", default=False, style=SPAWN_STYLE
     ).unsafe_ask()
     
     if use_current:
