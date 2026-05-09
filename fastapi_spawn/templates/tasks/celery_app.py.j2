@@ -9,13 +9,13 @@ from app.core.config import settings
 {% if broker == "redis" %}
 celery_app = Celery(
     "{{ slug }}",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
+    broker=settings.redis_url,
+    backend=settings.redis_url,
 )
 {% elif broker == "rabbitmq" %}
 celery_app = Celery(
     "{{ slug }}",
-    broker=settings.RABBITMQ_URL,
+    broker=settings.rabbitmq_url,
     backend="rpc://",
 )
 {% else %}

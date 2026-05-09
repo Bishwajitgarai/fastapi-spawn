@@ -1,6 +1,6 @@
 """fastapi-spawn — Production-ready FastAPI project scaffolding CLI."""
 
-__version__ = "0.4.17"
+__version__ = "0.4.21"
 __author__ = "Bishwajit Garai"
 __email__ = "bishwajitgarai@gmail.com"
 __license__ = "MIT"

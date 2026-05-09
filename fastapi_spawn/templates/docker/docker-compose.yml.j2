@@ -20,6 +20,13 @@ services:
 {% endif %}
     volumes:
       - .:/app
+    environment:
+{% if has_relational_db and db == "postgresql" %}
+      - POSTGRES_HOST=postgres
+{% endif %}
+{% if broker == "redis" or cache == "redis" %}
+      - REDIS_HOST=redis
+{% endif %}
     restart: unless-stopped
 
 {% if has_broker and broker != "kafka" %}
@@ -30,6 +37,13 @@ services:
       - .env
     depends_on:
       - app
+    environment:
+{% if has_relational_db and db == "postgresql" %}
+      - POSTGRES_HOST=postgres
+{% endif %}
+{% if broker == "redis" or cache == "redis" %}
+      - REDIS_HOST=redis
+{% endif %}
     restart: unless-stopped
 {% endif %}
 
@@ -38,8 +52,8 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: {{ slug }}_db
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
