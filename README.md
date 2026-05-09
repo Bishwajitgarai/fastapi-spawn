@@ -69,9 +69,13 @@ my-api/
 │   ├── api/
 │   │   ├── graphql.py           # Strawberry GraphQL schema + IDE (if graphql)
 │   │   └── v1/
-│   │       ├── health.py        # GET /health  /readiness  /liveness
-│   │       ├── auth.py          # POST /auth/login  /auth/refresh
-│   │       └── ws.py            # WebSocket /ws/connect  /ws/connect/{room_id}
+│   │       ├── router.py        # Central API router aggregating sub-routers
+│   │       ├── health/
+│   │       │   └── router.py    # GET /health  /readiness  /liveness
+│   │       ├── auth/
+│   │       │   └── router.py    # POST /auth/login  /auth/refresh (if auth)
+│   │       └── ws/
+│   │           └── router.py    # WebSocket /ws/connect (if websockets)
 │   ├── core/
 │   │   ├── config.py            # Pydantic Settings v2 — individual env fields + @property URLs
 │   │   ├── logger.py            # Context-var logger — request ID, client IP, file rotation

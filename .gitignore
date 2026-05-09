@@ -51,3 +51,5 @@ Thumbs.db
 
 # Hatch / build backends
 .hatch/
+
+.test/

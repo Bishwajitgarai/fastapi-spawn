@@ -15,6 +15,7 @@ dependencies = [
     "pydantic-settings>=2.2.0",
     "httpx>=0.27.0",
     "slowapi>=0.1.9",             # rate limiting middleware
+    "orjson>=3.9.0",              # fast JSON responses
 
 {% if log_lib == "loguru" %}
     "loguru>=0.7.2",
@@ -175,24 +176,8 @@ dev-dependencies = [
     "pre-commit>=3.7.0",
 ]
 
-# ── uv run scripts ────────────────────────────────────────────────────────────
-# Usage: uv run <script-name>
-[tool.uv.scripts]
-dev       = "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
-start     = "python main.py"
-test      = "pytest --cov=app --cov-report=term-missing"
-lint      = "ruff check ."
-format    = "ruff format ."
-typecheck = "mypy app/"
-{% if migration == "alembic" %}
-migrate   = "alembic upgrade head"
-rollback  = "alembic downgrade -1"
-makemig   = "alembic revision --autogenerate -m"
-{% endif %}
-{% if has_broker %}
-worker    = "celery -A tasks.celery_app worker --loglevel=info"
-beat      = "celery -A tasks.celery_app beat --loglevel=info"
-{% endif %}
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

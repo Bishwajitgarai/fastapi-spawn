@@ -93,6 +93,6 @@ schema = strawberry.Schema(
 # Mount with: app.include_router(graphql_router, prefix="/graphql")
 graphql_router = GraphQLRouter(
     schema,
-    graphiql=True,          # GraphiQL IDE at /graphql — disable in production
+    graphql_ide="graphiql",
     subscription_protocols=["graphql-transport-ws", "graphql-ws"],
 )

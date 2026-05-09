@@ -7,19 +7,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
-from app.api.v1 import health
-{% if has_auth %}
-from app.api.v1 import auth
+from app.api.v1.router import router as api_v1_router
+{% if has_graphql %}
+from app.api.graphql import graphql_router
 {% endif %}
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
-from app.core.logging import configure_logging
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
-    configure_logging()
 {% if has_relational_db and orm == "sqlalchemy" %}
     from app.db.session import engine, Base
     async with engine.begin() as conn:
@@ -60,9 +58,12 @@ def create_application() -> FastAPI:
     register_exception_handlers(application)
 
     # Routers
-    application.include_router(health.router, prefix=settings.API_V1_PREFIX, tags=["Health"])
-{% if has_auth %}
-    application.include_router(auth.router, prefix=settings.API_V1_PREFIX, tags=["Auth"])
+    # Mount REST API v1 router
+    application.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
+
+{% if has_graphql %}
+    # Mount GraphQL endpoint
+    application.include_router(graphql_router, prefix="/graphql")
 {% endif %}
 
     return application

@@ -173,11 +173,15 @@ class ProjectGenerator:
         v1 = api / "v1"
         v1.mkdir()
         self._render_to(v1 / "__init__.py", "app/__init__.py.j2")
-        self._render_to(v1 / "health.py", "app/api/v1/health.py.j2")
+        self._render_to(v1 / "router.py", "app/api/v1/router.py.j2")
+        (v1 / "health").mkdir()
+        self._render_to(v1 / "health" / "router.py", "app/api/v1/health/router.py.j2")
         if self.config.has_auth:
-            self._render_to(v1 / "auth.py", "app/api/v1/auth.py.j2")
+            (v1 / "auth").mkdir()
+            self._render_to(v1 / "auth" / "router.py", "app/api/v1/auth/router.py.j2")
         if self.config.has_websockets:
-            self._render_to(v1 / "ws.py", "app/api/v1/ws.py.j2")
+            (v1 / "ws").mkdir()
+            self._render_to(v1 / "ws" / "router.py", "app/api/v1/ws/router.py.j2")
             self._render_to(core / "ws_manager.py", "app/core/ws_manager.py.j2")
         if self.config.has_graphql:
             self._render_to(api / "graphql.py", "app/api/graphql.py.j2")
@@ -287,9 +291,13 @@ class ProjectGenerator:
         if cfg.has_s3:         core_items += "  storage.py"
         if cfg.has_ai:         core_items += "  ai.py"
         app.add(f"[blue]core/[/blue]  {core_items}")
-        api = app.add("[blue]api/[/blue]  deps.py")
-        v1 = "health.py" + ("  auth.py" if cfg.has_auth else "")
-        api.add(f"[blue]v1/[/blue]  {v1}")
+        api = app.add("[blue]api/[/blue]  deps.py  [dim]graphql.py[/dim]?")
+        v1 = api.add("[blue]v1/[/blue]  router.py")
+        v1.add("[blue]health/[/blue]  router.py")
+        if cfg.has_auth:
+            v1.add("[blue]auth/[/blue]  router.py")
+        if cfg.has_websockets:
+            v1.add("[blue]ws/[/blue]  router.py")
         if cfg.db.value != "none":
             app.add("[blue]db/[/blue]  session.py")
         for sub in ("models/", "schemas/", "services/", "repositories/"):

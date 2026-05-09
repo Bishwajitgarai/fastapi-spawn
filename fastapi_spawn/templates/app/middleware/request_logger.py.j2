@@ -7,33 +7,11 @@ from __future__ import annotations
 
 import time
 import uuid
-from contextvars import ContextVar
-from typing import Optional
-
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-# ── Context variables (per-request, async-safe) ────────────────────────────
-_request_id_ctx: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
-_client_ip_ctx: ContextVar[Optional[str]] = ContextVar("client_ip", default=None)
-
-
-def set_request_id(value: Optional[str]) -> None:
-    _request_id_ctx.set(value)
-
-
-def get_request_id() -> Optional[str]:
-    return _request_id_ctx.get()
-
-
-def set_client_ip(value: Optional[str]) -> None:
-    _client_ip_ctx.set(value)
-
-
-def get_client_ip() -> Optional[str]:
-    return _client_ip_ctx.get()
-
+from app.core.logger import logger, set_client_ip, set_request_id
 
 def _extract_client_ip(request: Request) -> str:
     """Respect X-Forwarded-For / X-Real-IP from reverse proxies."""
@@ -70,7 +48,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         start = time.perf_counter()
 
-        from app.core.logger import logger
         logger.info("→ %s %s  rid=%s  ip=%s", request.method, request.url.path, request_id, client_ip)
 
         try:
