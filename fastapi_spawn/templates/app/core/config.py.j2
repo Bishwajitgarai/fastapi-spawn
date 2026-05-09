@@ -178,7 +178,7 @@ class Settings(BaseSettings):
     # ── Ollama (local) ─────────────────────────────────────────────────────
     OLLAMA_HOST: str = "localhost"
     OLLAMA_PORT: str = "11434"
-    OLLAMA_MODEL: str = "llama3"
+    OLLAMA_MODEL: str = "tinyllama"
 
     @property
     def ollama_url(self) -> str:
