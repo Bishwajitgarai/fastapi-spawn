@@ -19,6 +19,10 @@ from fastapi_spawn.constants import (
     ORM,
     ORM_DB_COMPAT,
     Stack,
+    Storage,
+    AIProvider,
+    MonitoringProvider,
+    VectorDB,
 )
 from fastapi_spawn.validators import questionary_validator, validate_project_name
 
@@ -47,8 +51,8 @@ def prompt_project_name(default: str = "") -> str:
 
 def prompt_database() -> Database:
     choices = [
-        questionary.Choice(title=label, value=db)
-        for db, label in DB_LABELS.items()
+        questionary.Choice(title=f"{i}) {label}", value=db)
+        for i, (db, label) in enumerate(DB_LABELS.items(), 1)
     ]
     return questionary.select(
         "Database backend:",
@@ -68,7 +72,7 @@ def prompt_orm(db: Database) -> ORM:
         orm for orm in ORM
         if db in ORM_DB_COMPAT.get(orm, compatible)
     ]
-    choices = [questionary.Choice(title=o.value, value=o) for o in valid_orms]
+    choices = [questionary.Choice(title=f"{i}) {o.value}", value=o) for i, o in enumerate(valid_orms, 1)]
     if not choices:
         return ORM.none
     return questionary.select(
@@ -80,8 +84,8 @@ def prompt_orm(db: Database) -> ORM:
 
 def prompt_auth() -> AuthType:
     choices = [
-        questionary.Choice(title=label, value=auth)
-        for auth, label in AUTH_LABELS.items()
+        questionary.Choice(title=f"{i}) {label}", value=auth)
+        for i, (auth, label) in enumerate(AUTH_LABELS.items(), 1)
     ]
     return questionary.select(
         "Authentication strategy:",
@@ -92,8 +96,8 @@ def prompt_auth() -> AuthType:
 
 def prompt_broker() -> Broker:
     choices = [
-        questionary.Choice(title=label, value=broker)
-        for broker, label in BROKER_LABELS.items()
+        questionary.Choice(title=f"{i}) {label}", value=broker)
+        for i, (broker, label) in enumerate(BROKER_LABELS.items(), 1)
     ]
     return questionary.select(
         "Message broker:",
@@ -104,8 +108,8 @@ def prompt_broker() -> Broker:
 
 def prompt_cache() -> Cache:
     choices = [
-        questionary.Choice(title=c.value, value=c)
-        for c in Cache
+        questionary.Choice(title=f"{i}) {c.value}", value=c)
+        for i, c in enumerate(Cache, 1)
     ]
     return questionary.select(
         "Cache layer:",
@@ -116,8 +120,8 @@ def prompt_cache() -> Cache:
 
 def prompt_stack() -> Stack:
     choices = [
-        questionary.Choice(title=f"{s.value}  —  {STACK_DESCRIPTIONS[s]}", value=s)
-        for s in Stack
+        questionary.Choice(title=f"{i}) {s.value}  —  {STACK_DESCRIPTIONS[s]}", value=s)
+        for i, s in enumerate(Stack, 1)
     ]
     return questionary.select(
         "Deployment stack:",
@@ -128,8 +132,8 @@ def prompt_stack() -> Stack:
 
 def prompt_ci() -> CIProvider:
     choices = [
-        questionary.Choice(title=c.value, value=c)
-        for c in CIProvider
+        questionary.Choice(title=f"{i}) {c.value}", value=c)
+        for i, c in enumerate(CIProvider, 1)
     ]
     return questionary.select(
         "CI/CD provider:",
@@ -140,11 +144,79 @@ def prompt_ci() -> CIProvider:
 
 def prompt_log_lib() -> LogLibrary:
     choices = [
-        questionary.Choice(title=l.value, value=l)
-        for l in LogLibrary
+        questionary.Choice(title=f"{i}) {l.value}", value=l)
+        for i, l in enumerate(LogLibrary, 1)
     ]
     return questionary.select(
         "Logging library:",
+        choices=choices,
+        style=SPAWN_STYLE,
+    ).unsafe_ask()
+
+
+def prompt_storage() -> Storage:
+    use_storage = questionary.confirm(
+        "Do you need file storage?", default=False, style=SPAWN_STYLE
+    ).unsafe_ask()
+    if not use_storage:
+        return Storage.none
+    choices = [
+        questionary.Choice(title=f"{i}) {s.value}", value=s)
+        for i, s in enumerate(Storage, 1) if s != Storage.none
+    ]
+    return questionary.select(
+        "Storage provider:",
+        choices=choices,
+        style=SPAWN_STYLE,
+    ).unsafe_ask()
+
+
+def prompt_ai() -> AIProvider:
+    use_ai = questionary.confirm(
+        "Do you need AI/LLM integration?", default=False, style=SPAWN_STYLE
+    ).unsafe_ask()
+    if not use_ai:
+        return AIProvider.none
+    choices = [
+        questionary.Choice(title=f"{i}) {a.value}", value=a)
+        for i, a in enumerate(AIProvider, 1) if a != AIProvider.none
+    ]
+    return questionary.select(
+        "AI provider:",
+        choices=choices,
+        style=SPAWN_STYLE,
+    ).unsafe_ask()
+
+
+def prompt_vector_db() -> VectorDB:
+    use_vdb = questionary.confirm(
+        "Do you need a Vector Database?", default=False, style=SPAWN_STYLE
+    ).unsafe_ask()
+    if not use_vdb:
+        return VectorDB.none
+    choices = [
+        questionary.Choice(title=f"{i}) {v.value}", value=v)
+        for i, v in enumerate(VectorDB, 1) if v != VectorDB.none
+    ]
+    return questionary.select(
+        "Vector database:",
+        choices=choices,
+        style=SPAWN_STYLE,
+    ).unsafe_ask()
+
+
+def prompt_monitoring() -> MonitoringProvider:
+    use_mon = questionary.confirm(
+        "Do you need Monitoring?", default=False, style=SPAWN_STYLE
+    ).unsafe_ask()
+    if not use_mon:
+        return MonitoringProvider.none
+    choices = [
+        questionary.Choice(title=f"{i}) {m.value}", value=m)
+        for i, m in enumerate(MonitoringProvider, 1) if m != MonitoringProvider.none
+    ]
+    return questionary.select(
+        "Monitoring provider:",
         choices=choices,
         style=SPAWN_STYLE,
     ).unsafe_ask()
@@ -175,6 +247,10 @@ def run_interactive_flow(project_name: str = "") -> dict:
     stack = prompt_stack()
     ci = prompt_ci()
     log_lib = prompt_log_lib()
+    storage = prompt_storage()
+    ai = prompt_ai()
+    vector_db = prompt_vector_db()
+    monitoring = prompt_monitoring()
     include_docker, include_tests = prompt_flags()
 
     return {
@@ -187,6 +263,10 @@ def run_interactive_flow(project_name: str = "") -> dict:
         "stack": stack,
         "ci": ci,
         "log_lib": log_lib,
+        "storage": storage,
+        "ai": ai,
+        "vector_db": vector_db,
+        "monitoring": monitoring,
         "include_docker": include_docker,
         "include_tests": include_tests,
     }

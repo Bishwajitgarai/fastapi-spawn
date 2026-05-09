@@ -219,6 +219,101 @@ def new(
     if not dry_run:
         console.print(f"\n[bold green]✓ Project created:[/bold green] {project_path.resolve()}")
         _print_next_steps(config)
+@app.command("start", help="Create a project using a preset template.")
+def start(
+    preset: str = typer.Argument(..., help="Preset name (basic, full)"),
+    project_name: str = typer.Argument(..., help="Name of the new project"),
+    output: Path = typer.Option(Path("."), "--output", "-o", help="Output directory"),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing directory"),
+) -> None:
+    _print_banner()
+    
+    if preset == "basic":
+        config = ProjectConfig(
+            project_name=project_name,
+            db=Database.sqlite,
+            orm=ORM.sqlalchemy,
+            migration=MigrationTool.alembic,
+            auth=AuthType.jwt,
+            broker=Broker.none,
+            cache=Cache.none,
+            storage=Storage.local,
+            ai=AIProvider.none,
+            api_extra=APIExtra.none,
+            monitoring=MonitoringProvider.none,
+            log_lib=LogLibrary.loguru,
+            log_dest=LogDestination.local,
+            email=EmailProvider.none,
+            notify=NotificationProvider.none,
+            vector_db=VectorDB.none,
+            stack=Stack.minimal,
+            ci=CIProvider.none,
+            include_docker=True,
+            include_tests=True,
+            force=force,
+        )
+    elif preset == "full-local":
+        config = ProjectConfig(
+            project_name=project_name,
+            db=Database.postgresql,
+            orm=ORM.sqlalchemy,
+            migration=MigrationTool.alembic,
+            auth=AuthType.jwt,
+            broker=Broker.none,
+            cache=Cache.none,
+            storage=Storage.local,
+            ai=AIProvider.none,
+            api_extra=APIExtra.none,
+            monitoring=MonitoringProvider.none,
+            log_lib=LogLibrary.loguru,
+            log_dest=LogDestination.local,
+            email=EmailProvider.none,
+            notify=NotificationProvider.none,
+            vector_db=VectorDB.chroma,
+            stack=Stack.standard,
+            ci=CIProvider.none,
+            include_docker=True,
+            include_tests=True,
+            force=force,
+        )
+    elif preset == "full":
+        config = ProjectConfig(
+            project_name=project_name,
+            db=Database.postgresql,
+            orm=ORM.sqlalchemy,
+            migration=MigrationTool.alembic,
+            auth=AuthType.jwt,
+            broker=Broker.redis,
+            cache=Cache.redis,
+            storage=Storage.s3,
+            ai=AIProvider.openai,
+            api_extra=APIExtra.websockets,
+            monitoring=MonitoringProvider.both,
+            log_lib=LogLibrary.loguru,
+            log_dest=LogDestination.local,
+            email=EmailProvider.none,
+            notify=NotificationProvider.none,
+            vector_db=VectorDB.qdrant,
+            stack=Stack.full,
+            ci=CIProvider.github,
+            include_docker=True,
+            include_tests=True,
+            force=force,
+        )
+    else:
+        rprint(f"[bold red]✗ Error:[/bold red] Unknown preset '{preset}'. Available presets: basic, full-local, full")
+        raise typer.Exit(1)
+
+    _print_summary(config)
+
+    try:
+        generator = ProjectGenerator(config, output)
+        project_path = generator.generate()
+        rprint(f"\n[bold green]✓ Project created:[/bold green] {project_path.resolve()}")
+        _print_next_steps(config)
+    except Exception as exc:
+        rprint(f"\n[bold red]✗ Generation failed:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
 
 
 # ── `list-templates` command ───────────────────────────────────────────────────

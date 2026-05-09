@@ -31,6 +31,11 @@ uv pip install fastapi-spawn
 # Interactive TUI — guided step-by-step
 fastapi-spawn new my-api
 
+# Or use a preset template (New in 0.4.24!)
+fastapi-spawn start basic my-api
+fastapi-spawn start full-local my-api
+fastapi-spawn start full my-api
+
 # Full stack one-liner
 fastapi-spawn new my-api \
   --db postgresql \
