@@ -162,7 +162,7 @@ def prompt_storage() -> Storage:
         return Storage.none
     choices = [
         questionary.Choice(title=f"{i}) {s.value}", value=s)
-        for i, s in enumerate(Storage, 1) if s != Storage.none
+        for i, s in enumerate(Storage, 1)
     ]
     return questionary.select(
         "Storage provider:",
@@ -179,7 +179,7 @@ def prompt_ai() -> AIProvider:
         return AIProvider.none
     choices = [
         questionary.Choice(title=f"{i}) {a.value}", value=a)
-        for i, a in enumerate(AIProvider, 1) if a != AIProvider.none
+        for i, a in enumerate(AIProvider, 1)
     ]
     return questionary.select(
         "AI provider:",
@@ -196,7 +196,7 @@ def prompt_vector_db() -> VectorDB:
         return VectorDB.none
     choices = [
         questionary.Choice(title=f"{i}) {v.value}", value=v)
-        for i, v in enumerate(VectorDB, 1) if v != VectorDB.none
+        for i, v in enumerate(VectorDB, 1)
     ]
     return questionary.select(
         "Vector database:",
@@ -213,7 +213,7 @@ def prompt_monitoring() -> MonitoringProvider:
         return MonitoringProvider.none
     choices = [
         questionary.Choice(title=f"{i}) {m.value}", value=m)
-        for i, m in enumerate(MonitoringProvider, 1) if m != MonitoringProvider.none
+        for i, m in enumerate(MonitoringProvider, 1)
     ]
     return questionary.select(
         "Monitoring provider:",

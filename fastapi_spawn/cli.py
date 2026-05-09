@@ -265,6 +265,39 @@ def start(
             include_tests=opts["include_tests"],
             force=force,
         )
+        
+        _print_summary(config)
+        
+        import questionary
+        from fastapi_spawn.interactive import SPAWN_STYLE
+        
+        use_current = questionary.confirm(
+            "Do you want to generate files directly in the current directory?", default=False, style=SPAWN_STYLE
+        ).unsafe_ask()
+        
+        if use_current:
+            output_dir = Path(".")
+            import os
+            if os.listdir("."):
+                confirm = questionary.confirm(
+                    "Current directory is not empty. This may overwrite files! Proceed?", default=False, style=SPAWN_STYLE
+                ).unsafe_ask()
+                if not confirm:
+                    rprint("[yellow]Aborted.[/yellow]")
+                    raise typer.Exit()
+        else:
+            output_dir = output / config.project_name
+
+        try:
+            generator = ProjectGenerator(config, output_dir)
+            project_path = generator.generate()
+            rprint(f"\n[bold green]✓ Project created:[/bold green] {project_path.resolve()}")
+            _print_next_steps(config)
+        except Exception as exc:
+            rprint(f"\n[bold red]✗ Generation failed:[/bold red] {exc}")
+            raise typer.Exit(1) from exc
+            
+        return
     else:
         if not project_name:
             import questionary
