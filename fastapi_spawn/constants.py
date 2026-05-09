@@ -93,6 +93,7 @@ class EmailProvider(str, Enum):
     sendgrid = "sendgrid"
     smtp     = "smtp"
     ses      = "ses"
+    resend   = "resend"
     none     = "none"
 
 
@@ -234,6 +235,7 @@ EMAIL_LABELS = {
     EmailProvider.sendgrid: "SendGrid",
     EmailProvider.smtp:     "SMTP (fastapi-mail)",
     EmailProvider.ses:      "AWS SES",
+    EmailProvider.resend:   "Resend",
     EmailProvider.none:     "No email",
 }
 

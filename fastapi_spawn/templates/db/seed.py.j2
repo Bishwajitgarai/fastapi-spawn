@@ -1,0 +1,61 @@
+import asyncio
+import logging
+from faker import Faker
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+fake = Faker()
+
+async def seed_database():
+    """
+    Seed the database with mock data.
+    Replace the stubs below with your actual database models and sessions.
+    """
+    logger.info("Seeding database...")
+    
+    # Example for SQLAlchemy:
+    # from app.db.session import async_session_maker
+    # from app.models.user import User
+    # from app.models.post import Post
+    # from app.models.comment import Comment
+    
+    # async with async_session_maker() as session:
+    #     users = []
+    #     # 1. Create Users
+    #     for _ in range(50):
+    #         user = User(
+    #             email=fake.email(),
+    #             full_name=fake.name(),
+    #             is_active=True
+    #         )
+    #         session.add(user)
+    #         users.append(user)
+    #     await session.commit()
+    #     
+    #     # 2. Create Posts
+    #     posts = []
+    #     for _ in range(200):
+    #         post = Post(
+    #             title=fake.sentence(),
+    #             content=fake.text(),
+    #             author_id=fake.random_element(elements=users).id
+    #         )
+    #         session.add(post)
+    #         posts.append(post)
+    #     await session.commit()
+    #
+    #     # 3. Create Comments
+    #     for _ in range(500):
+    #         comment = Comment(
+    #             text=fake.paragraph(),
+    #             post_id=fake.random_element(elements=posts).id,
+    #             user_id=fake.random_element(elements=users).id
+    #         )
+    #         session.add(comment)
+    #     await session.commit()
+
+    logger.info("Generated 50 mock users, 200 posts, and 500 comments (Stub)")
+    logger.info("Database seeding complete!")
+
+if __name__ == "__main__":
+    asyncio.run(seed_database())

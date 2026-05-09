@@ -1,0 +1,26 @@
+from fastapi import APIRouter, Request, HTTPException
+from sse_starlette.sse import EventSourceResponse
+import asyncio
+
+router = APIRouter(prefix="/streaming", tags=["streaming"])
+
+async def message_generator():
+    """Simulates a stream of LLM tokens."""
+    tokens = ["Hello", " ", "there", "!", " ", "This", " ", "is", " ", "a", " ", "stream", "."]
+    for token in tokens:
+        await asyncio.sleep(0.1)  # Simulate processing delay
+        yield {
+            "event": "message",
+            "id": "message_id",
+            "retry": 15000,
+            "data": token
+        }
+    yield {"event": "done", "data": "[DONE]"}
+
+@router.get("/chat")
+async def stream_chat(request: Request):
+    """
+    Server-Sent Events endpoint for streaming chat responses.
+    Client can consume this using EventSource API in JS.
+    """
+    return EventSourceResponse(message_generator())

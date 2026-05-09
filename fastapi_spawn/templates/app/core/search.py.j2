@@ -1,0 +1,23 @@
+import meilisearch
+from app.core.config import settings
+
+class MeilisearchService:
+    """
+    Client for Meilisearch — an open-source, lightning-fast, and hyper-relevant search engine.
+    """
+    def __init__(self):
+        host = getattr(settings, "MEILISEARCH_HOST", "http://localhost:7700")
+        api_key = getattr(settings, "MEILISEARCH_API_KEY", "masterKey")
+        self.client = meilisearch.Client(host, api_key)
+
+    def add_documents(self, index_name: str, documents: list[dict]):
+        """Add or update documents in an index."""
+        index = self.client.index(index_name)
+        return index.add_documents(documents)
+
+    def search(self, index_name: str, query: str, limit: int = 20):
+        """Perform a typo-tolerant search."""
+        index = self.client.index(index_name)
+        return index.search(query, {"limit": limit})
+
+search_client = MeilisearchService()

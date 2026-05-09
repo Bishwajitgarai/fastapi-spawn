@@ -1,0 +1,40 @@
+import io
+from typing import Optional
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    fitz = None
+
+try:
+    import pytesseract
+    from PIL import Image
+except ImportError:
+    pytesseract = None
+
+class OCRService:
+    """
+    Handles PDF parsing and Optical Character Recognition.
+    Requires `pymupdf` and `pytesseract` to be installed.
+    System requirement: `sudo apt install tesseract-ocr`
+    """
+    
+    @staticmethod
+    def extract_text_from_pdf(pdf_bytes: bytes) -> str:
+        """Extract text from a native PDF."""
+        if fitz is None:
+            raise RuntimeError("PyMuPDF is not installed. Run: pip install pymupdf")
+            
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        text_chunks = []
+        for page in doc:
+            text_chunks.append(page.get_text())
+        return "\n".join(text_chunks)
+
+    @staticmethod
+    def extract_text_from_image(image_bytes: bytes) -> str:
+        """Perform OCR on an image."""
+        if pytesseract is None:
+            raise RuntimeError("pytesseract is not installed. Run: pip install pytesseract pillow")
+            
+        img = Image.open(io.BytesIO(image_bytes))
+        return pytesseract.image_to_string(img)

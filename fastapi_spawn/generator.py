@@ -209,6 +209,32 @@ class ProjectGenerator:
             (root / "logs").mkdir(exist_ok=True)
             (root / "logs" / ".gitkeep").write_text("", encoding="utf-8")
 
+        # Extras rendering
+        extras = self.config.extras
+        if "stripe" in extras:
+            (v1 / "payments").mkdir(parents=True, exist_ok=True)
+            self._render_to(v1 / "payments" / "router.py", "app/api/v1/payments/router.py.j2")
+            self._render_to(v1 / "payments" / "__init__.py", "app/__init__.py.j2")
+        
+        if "sso" in extras:
+            (v1 / "auth").mkdir(parents=True, exist_ok=True)
+            self._render_to(v1 / "auth" / "sso.py", "app/api/v1/auth/sso.py.j2")
+            
+        if "sse" in extras:
+            (v1 / "streaming").mkdir(parents=True, exist_ok=True)
+            self._render_to(v1 / "streaming" / "router.py", "app/api/v1/streaming/router.py.j2")
+            self._render_to(v1 / "streaming" / "__init__.py", "app/__init__.py.j2")
+
+        if "seed" in extras:
+            (root / "db").mkdir(parents=True, exist_ok=True)
+            self._render_to(root / "db" / "seed.py", "db/seed.py.j2")
+
+        if "ocr" in extras:
+            self._render_to(core / "ocr.py", "app/core/ocr.py.j2")
+
+        if "meilisearch" in extras:
+            self._render_to(core / "search.py", "app/core/search.py.j2")
+
 
     def _generate_tasks(self, root: Path) -> None:
         """Root-level tasks/ directory."""

@@ -432,16 +432,25 @@ fastapi-spawn add gemini       # Google Generative AI client
 fastapi-spawn add qdrant       # Qdrant vector DB
 fastapi-spawn add chroma       # ChromaDB local vector DB
 fastapi-spawn add pinecone     # Pinecone cloud vector DB
+fastapi-spawn add meilisearch  # Meilisearch typo-tolerant search
+fastapi-spawn add ocr          # PDF & OCR data extraction pipeline
+
+# Payments & Identity
+fastapi-spawn add stripe       # Stripe payments & webhooks
+fastapi-spawn add sso          # FastAPI SSO (Google/GitHub login)
 
 # Messaging & Async Workers
 fastapi-spawn add celery       # Celery worker + tasks/
 fastapi-spawn add arq          # Arq async job queues using Redis
 fastapi-spawn add websockets   # WebSocket connection manager
+fastapi-spawn add sse          # Server-Sent Events streaming
 
-# Storage, APIs & Monitoring
+# Storage, APIs, Seeding & Monitoring
 fastapi-spawn add s3           # AWS S3 / MinIO storage
 fastapi-spawn add graphql      # Strawberry GraphQL schema
 fastapi-spawn add alembic      # Alembic async migrations
+fastapi-spawn add seed         # Faker database seeding script
+fastapi-spawn add resend       # Resend modern email client
 fastapi-spawn add sentry       # Sentry APM integration
 fastapi-spawn add prometheus   # Prometheus metrics
 ```

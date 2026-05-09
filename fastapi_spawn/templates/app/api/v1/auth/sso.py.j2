@@ -1,0 +1,36 @@
+from fastapi import APIRouter, Request, HTTPException
+from fastapi_sso.sso.google import GoogleSSO
+from app.core.config import settings
+
+router = APIRouter(prefix="/sso", tags=["auth"])
+
+# Requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env
+google_sso = GoogleSSO(
+    client_id=getattr(settings, "GOOGLE_CLIENT_ID", "placeholder"),
+    client_secret=getattr(settings, "GOOGLE_CLIENT_SECRET", "placeholder"),
+    redirect_uri="http://localhost:8000/api/v1/auth/sso/google/callback",
+    allow_insecure_http=True, # Set to False in production
+)
+
+@router.get("/google/login")
+async def google_login():
+    """Redirects the user to the Google login page."""
+    with google_sso:
+        return await google_sso.get_login_redirect()
+
+@router.get("/google/callback")
+async def google_callback(request: Request):
+    """Process login response from Google and return user info."""
+    with google_sso:
+        user = await google_sso.verify_and_process(request)
+    if not user:
+        raise HTTPException(status_code=400, detail="Failed to login via Google")
+    
+    # TODO: Create or update user in database, then generate and return JWT
+    return {
+        "id": user.id,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "picture": user.picture
+    }

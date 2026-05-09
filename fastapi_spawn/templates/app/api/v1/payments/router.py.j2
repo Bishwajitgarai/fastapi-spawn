@@ -1,0 +1,58 @@
+from fastapi import APIRouter, Request, HTTPException, Depends
+import stripe
+from app.core.config import settings
+from app.core.logger import logger
+
+router = APIRouter(prefix="/payments", tags=["payments"])
+
+stripe.api_key = getattr(settings, "STRIPE_API_KEY", "sk_test_placeholder")
+webhook_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "whsec_placeholder")
+
+@router.post("/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    if not sig_header:
+        raise HTTPException(status_code=400, detail="Missing signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except ValueError as e:
+        logger.error(f"Invalid payload: {e}")
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"Invalid signature: {e}")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # Handle the event
+    if event.type == "checkout.session.completed":
+        session = event.data.object
+        logger.info(f"Payment successful for session {session.id}")
+        # TODO: Fulfill the purchase...
+
+    return {"status": "success"}
+
+@router.post("/create-checkout-session")
+async def create_checkout_session():
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {"name": "Pro Subscription"},
+                        "unit_amount": 2000,
+                    },
+                    "quantity": 1,
+                },
+            ],
+            mode="payment",
+            success_url="http://localhost:3000/success",
+            cancel_url="http://localhost:3000/cancel",
+        )
+        return {"url": checkout_session.url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

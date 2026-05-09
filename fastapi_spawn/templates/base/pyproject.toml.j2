@@ -93,6 +93,8 @@ dependencies = [
 {% elif email == "ses" %}
     # Uses boto3 (already included above if has_s3, else add it)
     "boto3>=1.34.0",
+{% elif email == "resend" %}
+    "resend>=2.1.0",
 {% endif %}
 
 {% if has_notify %}
@@ -149,6 +151,28 @@ dependencies = [
     "boto3>=1.34.0",
 {% elif log_dest == "datadog" %}
     "datadog-lambda>=6.0.0",
+{% endif %}
+
+{% if extras %}
+{% if "stripe" in extras %}
+    "stripe>=9.0.0",
+{% endif %}
+{% if "sso" in extras %}
+    "fastapi-sso>=0.14.0",
+{% endif %}
+{% if "sse" in extras %}
+    "sse-starlette>=2.1.0",
+{% endif %}
+{% if "seed" in extras %}
+    "faker>=25.0.0",
+{% endif %}
+{% if "ocr" in extras %}
+    "pymupdf>=1.24.0",
+    "pytesseract>=0.3.10",
+{% endif %}
+{% if "meilisearch" in extras %}
+    "meilisearch>=0.30.0",
+{% endif %}
 {% endif %}
 ]
 

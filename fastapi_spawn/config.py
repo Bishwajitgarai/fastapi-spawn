@@ -47,6 +47,7 @@ class ProjectConfig:
     include_makefile: bool = True
     dry_run: bool = False
     force: bool = False
+    extras: list[str] = field(default_factory=list)
     # Derived (post-init)
     package_name: str = field(default="", init=False)
     slug: str = field(default="", init=False)
@@ -194,6 +195,7 @@ class ProjectConfig:
             "has_log_file": self.has_log_file,
             "include_tests": self.include_tests,
             "include_makefile": self.include_makefile,
+            "extras": self.extras,
         }
 
     def summary_lines(self) -> list[tuple[str, str]]:
@@ -219,5 +221,6 @@ class ProjectConfig:
             ("API extras",   self.api_extra.value),
             ("Docker",       "yes" if self.has_docker else "no"),
             ("Tests",        "yes" if self.include_tests else "no"),
+            ("Extras",       ", ".join(self.extras) if self.extras else "none"),
             ("Dry-run",      "yes" if self.dry_run else "no"),
         ]
