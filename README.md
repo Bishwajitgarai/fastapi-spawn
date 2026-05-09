@@ -59,6 +59,30 @@ fastapi-spawn add alembic
 fastapi-spawn add sentry
 ```
 
+```
+
+---
+
+## 🆘 Built-in Help & Auto-Suggestions
+
+`fastapi-spawn` comes with an integrated global help menu and intelligent typo correction:
+
+```bash
+# Display the interactive global help menu
+fastapi-spawn help
+
+# Or use the standard flag
+fastapi-spawn --help
+```
+
+### Auto-Typo Correction (Did you mean?)
+If you accidentally misspell a command, the CLI will catch it and suggest the right one automatically to save you time.
+```bash
+$ fastapi-spawn nw my_app
+
+Error: No such command 'nw'. Did you mean 'new'?
+```
+
 ---
 
 ## Generated Project Structure
