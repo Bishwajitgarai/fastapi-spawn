@@ -221,12 +221,31 @@ def new(
         _print_next_steps(config)
 @app.command("start", help="Create a project using a preset template.")
 def start(
-    preset: str = typer.Argument(..., help="Preset name (basic, full)"),
-    project_name: str = typer.Argument(..., help="Name of the new project"),
+    preset: Optional[str] = typer.Argument(None, help="Preset name (basic, full-local, full)"),
+    project_name: Optional[str] = typer.Argument(None, help="Name of the new project"),
     output: Path = typer.Option(Path("."), "--output", "-o", help="Output directory"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing directory"),
 ) -> None:
     _print_banner()
+    
+    if not preset:
+        import questionary
+        from fastapi_spawn.interactive import SPAWN_STYLE
+        preset = questionary.select(
+            "Which preset do you want to use?",
+            choices=["basic", "full-local", "full"],
+            style=SPAWN_STYLE,
+        ).unsafe_ask()
+        
+    if not project_name:
+        import questionary
+        from fastapi_spawn.interactive import SPAWN_STYLE
+        from fastapi_spawn.validators import questionary_validator, validate_project_name
+        project_name = questionary.text(
+            "Project name:",
+            validate=questionary_validator(validate_project_name),
+            style=SPAWN_STYLE,
+        ).unsafe_ask()
     
     if preset == "basic":
         config = ProjectConfig(
