@@ -66,6 +66,23 @@ def create_application() -> FastAPI:
     application.include_router(graphql_router, prefix="/graphql")
 {% endif %}
 
+{% if "admin" in extras %}
+    # Mount Admin
+    try:
+        from app.admin.setup import setup_admin
+        from app.db.session import engine
+        setup_admin(application, engine)
+    except Exception as e:
+        import logging
+        logging.warning(f"Failed to setup admin: {e}")
+{% endif %}
+
+    # Mount StaticFiles for frontend (must be last)
+    from fastapi.staticfiles import StaticFiles
+    import os
+    if os.path.exists("frontend"):
+        application.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+
     return application
 
 

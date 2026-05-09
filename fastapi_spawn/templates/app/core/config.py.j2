@@ -185,6 +185,11 @@ class Settings(BaseSettings):
         return f"http://{self.OLLAMA_HOST}:{self.OLLAMA_PORT}"
 
 {% endif %}
+{% if db == "supabase" or vector_db == "supabase" %}
+    # ── Supabase ───────────────────────────────────────────────────────────
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+{% endif %}
 {% if has_sentry %}
     # ── Sentry ─────────────────────────────────────────────────────────────
     SENTRY_DSN: str = ""

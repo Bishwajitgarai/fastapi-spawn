@@ -546,6 +546,13 @@ $ fastapi-spawn add websockets
 | `beanie` | mongodb |
 | `none` | any |
 
+## Recent Updates (v0.4.22)
+
+- **Ollama Integration**: Updated default model to `tinyllama` for faster testing.
+- **Supabase Fixes**: Fixed missing environment variables in configuration templates.
+- **Frontend & Admin Mounted**: Automatically mounts the static frontend at `/` and the `sqladmin` dashboard at `/admin` (if enabled).
+- **Service Health Checks**: Added connection checks for Elasticsearch, OpenSearch, Kafka, Vespa, Ollama, DuckDB, Chroma, and Supabase in the generated `/health/services` endpoint.
+
 ---
 
 ## Contributing
