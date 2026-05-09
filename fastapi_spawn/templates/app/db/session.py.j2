@@ -72,6 +72,11 @@ from beanie import init_beanie
 
 from app.core.config import settings
 
+# Workaround for Beanie/Motor compatibility issue on Python 3.12
+if not hasattr(motor.motor_asyncio.AsyncIOMotorClient, "append_metadata"):
+    def append_metadata(self, metadata):
+        pass
+    motor.motor_asyncio.AsyncIOMotorClient.append_metadata = append_metadata
 
 async def init_db() -> None:
     client = motor.motor_asyncio.AsyncIOMotorClient(settings.mongodb_url)
