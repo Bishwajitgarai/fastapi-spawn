@@ -62,6 +62,14 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+@app.command("help", help="Show this help message and exit.")
+def show_help(ctx: typer.Context) -> None:
+    """Print the global CLI help."""
+    # We leverage Click's internal help formatting to render the same as --help
+    rprint(ctx.parent.get_help())
+
+
+
 # ── `new` command ──────────────────────────────────────────────────────────────
 
 @app.command("new", help="Create a new FastAPI project.")
@@ -278,8 +286,6 @@ _ADDABLE_FEATURES = {
     "opentelemetry": "OpenTelemetry distributed tracing",
     "sendgrid":    "SendGrid email",
     "smtp":        "SMTP email (fastapi-mail)",
-    "ses":         "AWS SES email",
-    "resend":      "Resend email client (modern React/HTML emails)",
     "slack":       "Slack webhook notifications",
     "discord":     "Discord webhook notifications",
     "qdrant":      "Qdrant vector database",
@@ -287,11 +293,16 @@ _ADDABLE_FEATURES = {
     "pinecone":    "Pinecone managed vector database",
     "elasticsearch": "Elasticsearch KNN search",
     "meilisearch": "Meilisearch ultra-fast typo-tolerant search",
+    "opensearch":  "OpenSearch vector and text search",
+    "vespa":       "Vespa big data serving engine",
     "websockets":  "WebSocket connection manager + endpoints",
     "sse":         "Server-Sent Events (SSE) streaming endpoint",
     "graphql":     "Strawberry GraphQL schema + subscriptions",
     "stripe":      "Stripe payments & webhook signature validation",
-    "sso":         "FastAPI SSO (Login with Google / GitHub)",
+    "sso":         "FastAPI SSO (Google, GitHub, Microsoft)",
+    "sso-google":  "FastAPI SSO (Google only)",
+    "sso-github":  "FastAPI SSO (GitHub only)",
+    "sso-microsoft": "FastAPI SSO (Microsoft only)",
     "seed":        "Database seeding script using Faker",
     "ocr":         "PDF & OCR data pipeline (PyMuPDF / Tesseract)",
     "docker":      "Dockerfile + docker-compose.yml",
@@ -356,11 +367,16 @@ def _feature_guidance(feature: str, _project_dir: Path) -> None:
         "pinecone":  ["Add dep: pinecone-client>=3.2.0", "Create app/core/vector_db.py", "Add to .env: PINECONE_API_KEY, PINECONE_INDEX_NAME"],
         "elasticsearch": ["Add dep: elasticsearch[async]>=8.13.0", "Create app/core/vector_db.py (kNN search)", "Add to .env: ELASTICSEARCH_HOST, ELASTICSEARCH_PORT, ELASTICSEARCH_API_KEY"],
         "meilisearch": ["Add dep: meilisearch>=0.30.0", "Create app/core/search.py (Meilisearch client)", "Add to .env: MEILISEARCH_HOST=http://localhost:7700, MEILISEARCH_API_KEY"],
+        "opensearch": ["Add dep: opensearch-py[async]>=2.5.0", "Create app/core/search.py (OpenSearch client)", "Add to .env: OPENSEARCH_HOST, OPENSEARCH_PORT, OPENSEARCH_USER, OPENSEARCH_PASSWORD"],
+        "vespa":     ["Add dep: pyvespa>=0.40.0", "Create app/core/search.py (Vespa client)", "Add to .env: VESPA_ENDPOINT"],
         "websockets":["No extra dep (built into FastAPI)", "Create app/core/ws_manager.py (ConnectionManager)", "Create app/api/v1/ws/router.py — /ws/connect, /ws/connect/{room_id}"],
         "sse":       ["Add dep: sse-starlette>=2.1.0", "Create app/api/v1/streaming/router.py", "Return EventSourceResponse(async_generator)"],
         "graphql":   ["Add dep: strawberry-graphql[fastapi]>=0.227.0", "Create app/api/graphql.py (Query + Mutation + Subscription)", "Mount: app.include_router(graphql_router, prefix='/graphql')"],
         "stripe":    ["Add dep: stripe>=9.0.0", "Create app/api/v1/payments/router.py (webhook endpoint)", "Add to .env: STRIPE_API_KEY, STRIPE_WEBHOOK_SECRET"],
-        "sso":       ["Add dep: fastapi-sso>=0.14.0", "Create app/api/v1/auth/sso.py (GoogleSSO / GithubSSO)", "Add to .env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET"],
+        "sso":       ["Add dep: fastapi-sso>=0.14.0", "Create app/api/v1/auth/sso.py (Google/Github/Microsoft SSO)", "Add to .env: GOOGLE_CLIENT_ID, GITHUB_CLIENT_ID, etc."],
+        "sso-google": ["1. Use 'fastapi-spawn new temp_app --extra sso-google' and copy the resulting sso.py"],
+        "sso-github": ["1. Use 'fastapi-spawn new temp_app --extra sso-github' and copy the resulting sso.py"],
+        "sso-microsoft": ["1. Use 'fastapi-spawn new temp_app --extra sso-microsoft' and copy the resulting sso.py"],
         "seed":      ["Add dep: faker>=25.0.0", "Create db/seed.py (generate 100 mock users/posts)", "Run: uv run python db/seed.py"],
         "ocr":       ["Add deps: pymupdf>=1.24.0, pytesseract>=0.3.10", "Create app/core/ocr.py (PDF parsing pipeline)", "Install system deps: sudo apt install tesseract-ocr"],
         "docker":    ["Create Dockerfile (multi-stage, uv-based)", "Create docker-compose.yml with all selected services", "Create .dockerignore"],

@@ -128,6 +128,8 @@ class VectorDB(str, Enum):
     pinecone      = "pinecone"
     supabase      = "supabase"       # pgvector on Supabase
     elasticsearch = "elasticsearch"
+    opensearch    = "opensearch"
+    vespa         = "vespa"
     none          = "none"
 
 
@@ -256,8 +258,10 @@ VECTOR_DB_LABELS = {
     VectorDB.qdrant:        "Qdrant — local Docker or Qdrant Cloud",
     VectorDB.chroma:        "ChromaDB — local open-source vector DB",
     VectorDB.pinecone:      "Pinecone — managed cloud",
-    VectorDB.supabase:      "Supabase pgvector",
-    VectorDB.elasticsearch: "Elasticsearch — kNN search",
+    VectorDB.supabase:      "Supabase (pgvector)",
+    VectorDB.elasticsearch: "Elasticsearch",
+    VectorDB.opensearch:    "OpenSearch",
+    VectorDB.vespa:         "Vespa",
     VectorDB.none:          "No vector database",
 }
 

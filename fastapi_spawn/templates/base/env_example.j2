@@ -229,11 +229,16 @@ SMTP_SSL=false
 {% elif email == "ses" %}
 # AWS SES (active) — uses AWS_* credentials above
 SES_FROM_EMAIL=noreply@example.com
+{% elif email == "resend" %}
+# Resend (active)
+RESEND_API_KEY=re_placeholder
+RESEND_FROM_EMAIL=noreply@example.com
 {% else %}
 # Email — uncomment the provider you need:
 # SendGrid: SENDGRID_API_KEY=SG.placeholder | SENDGRID_FROM_EMAIL=noreply@example.com
 # SMTP:     SMTP_HOST=smtp.gmail.com | SMTP_PORT=587 | SMTP_USER=... | SMTP_PASSWORD=... | SMTP_FROM_EMAIL=... | SMTP_STARTTLS=true | SMTP_SSL=false
 # AWS SES:  SES_FROM_EMAIL=noreply@example.com  (uses AWS_* credentials)
+# Resend:   RESEND_API_KEY=re_placeholder | RESEND_FROM_EMAIL=noreply@example.com
 {% endif %}
 
 # =============================================================================
@@ -273,6 +278,15 @@ PINECONE_INDEX_NAME={{ slug }}-index
 ELASTICSEARCH_HOST=localhost
 ELASTICSEARCH_PORT=9200
 ELASTICSEARCH_API_KEY=
+{% elif vector_db == "opensearch" %}
+# OpenSearch (active)
+OPENSEARCH_HOST=localhost
+OPENSEARCH_PORT=9200
+OPENSEARCH_USER=admin
+OPENSEARCH_PASSWORD=admin
+{% elif vector_db == "vespa" %}
+# Vespa (active)
+VESPA_ENDPOINT=http://localhost:8080
 {% else %}
 # Vector DB — uncomment the provider you need:
 # Qdrant:        QDRANT_HOST=localhost | QDRANT_PORT=6333 | QDRANT_API_KEY=  (blank for local)
@@ -280,6 +294,8 @@ ELASTICSEARCH_API_KEY=
 # Pinecone:      PINECONE_API_KEY=CHANGE_ME | PINECONE_INDEX_NAME={{ slug }}-index
 # Supabase:      uses SUPABASE_URL / SUPABASE_KEY above
 # Elasticsearch: ELASTICSEARCH_HOST=localhost | ELASTICSEARCH_PORT=9200 | ELASTICSEARCH_API_KEY=
+# OpenSearch:    OPENSEARCH_HOST=localhost | OPENSEARCH_PORT=9200 | OPENSEARCH_USER=admin | OPENSEARCH_PASSWORD=admin
+# Vespa:         VESPA_ENDPOINT=http://localhost:8080
 {% endif %}
 
 # =============================================================================
@@ -297,4 +313,29 @@ DD_SITE=datadoghq.com
 # CloudWatch: uses AWS_* credentials — no extra vars needed
 # Datadog:    DD_API_KEY=CHANGE_ME | DD_SITE=datadoghq.com
 # OpenTelemetry: OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317  (set in compose)
+{% endif %}
+
+# =============================================================================
+# EXTRAS (Payments, SSO, Search)
+# =============================================================================
+{% if extras %}
+{% if "stripe" in extras %}
+# Stripe (active)
+STRIPE_API_KEY=sk_test_placeholder
+STRIPE_WEBHOOK_SECRET=whsec_placeholder
+{% endif %}
+{% if "sso" in extras or "sso-google" in extras or "sso-github" in extras or "sso-microsoft" in extras %}
+# SSO - Google, GitHub, Microsoft (active)
+GOOGLE_CLIENT_ID=placeholder
+GOOGLE_CLIENT_SECRET=placeholder
+GITHUB_CLIENT_ID=placeholder
+GITHUB_CLIENT_SECRET=placeholder
+MICROSOFT_CLIENT_ID=placeholder
+MICROSOFT_CLIENT_SECRET=placeholder
+{% endif %}
+{% if "meilisearch" in extras %}
+# Meilisearch (active)
+MEILISEARCH_HOST=http://localhost:7700
+MEILISEARCH_API_KEY=masterKey
+{% endif %}
 {% endif %}

@@ -340,6 +340,10 @@ SMTP_SSL=false
 # ── AWS SES ──────────────────────────────────────────────────────────────
 SES_FROM_EMAIL=noreply@example.com  # uses AWS_* credentials above
 
+# ── Resend ───────────────────────────────────────────────────────────────
+RESEND_API_KEY=re_placeholder
+RESEND_FROM_EMAIL=noreply@example.com
+
 # ── Slack ────────────────────────────────────────────────────────────────
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/CHANGE_ME
 
@@ -361,6 +365,31 @@ ELASTICSEARCH_HOST=localhost
 ELASTICSEARCH_PORT=9200
 ELASTICSEARCH_API_KEY=
 # → assembled as: http://HOST:PORT
+
+# ── OpenSearch ───────────────────────────────────────────────────────────
+OPENSEARCH_HOST=localhost
+OPENSEARCH_PORT=9200
+OPENSEARCH_USER=admin
+OPENSEARCH_PASSWORD=admin
+
+# ── Vespa ────────────────────────────────────────────────────────────────
+VESPA_ENDPOINT=http://localhost:8080
+
+# ── Extras (Stripe, SSO, Meilisearch) ────────────────────────────────────
+STRIPE_API_KEY=sk_test_placeholder
+STRIPE_WEBHOOK_SECRET=whsec_placeholder
+
+GOOGLE_CLIENT_ID=placeholder
+GOOGLE_CLIENT_SECRET=placeholder
+
+GITHUB_CLIENT_ID=placeholder
+GITHUB_CLIENT_SECRET=placeholder
+
+MICROSOFT_CLIENT_ID=placeholder
+MICROSOFT_CLIENT_SECRET=placeholder
+
+MEILISEARCH_HOST=http://localhost:7700
+MEILISEARCH_API_KEY=masterKey
 ```
 
 > All variables are assembled into connection URLs inside `app/core/config.py` via `@property`. Your code always reads from structured fields — never a fragile connection string.
@@ -409,12 +438,12 @@ Did you generate a minimal project and now realize you need WebSockets, AWS S3, 
 fastapi-spawn add [FEATURE]
 ```
 
-### How it works:
-1. **Generates the Module**: It creates the necessary file (e.g., `app/core/ai.py` or `app/api/v1/ws/router.py`) tailored to your project structure.
-2. **Environment Variables**: It prompts you with the exact environment variables you need to append to your `.env` and `config.py`.
-3. **Integration Guide**: It outputs a step-by-step UI snippet telling you *exactly* where to import and mount the new feature in your `main.py` or `router.py`.
+Or you can add them at creation time with the `--extra` flag:
+```bash
+fastapi-spawn new my_app --extra stripe --extra sso --extra seed
+```
 
-### All Possibilities you can `add`:
+### All Possibilities you can `add` or `--extra`:
 
 You can run any of the following commands inside an existing project:
 
@@ -433,11 +462,16 @@ fastapi-spawn add qdrant       # Qdrant vector DB
 fastapi-spawn add chroma       # ChromaDB local vector DB
 fastapi-spawn add pinecone     # Pinecone cloud vector DB
 fastapi-spawn add meilisearch  # Meilisearch typo-tolerant search
+fastapi-spawn add opensearch   # OpenSearch vector & text search
+fastapi-spawn add vespa        # Vespa big data serving engine
 fastapi-spawn add ocr          # PDF & OCR data extraction pipeline
 
 # Payments & Identity
 fastapi-spawn add stripe       # Stripe payments & webhooks
-fastapi-spawn add sso          # FastAPI SSO (Google/GitHub login)
+fastapi-spawn add sso          # FastAPI SSO (Google, GitHub, Microsoft)
+fastapi-spawn add sso-google   # FastAPI SSO (Google only)
+fastapi-spawn add sso-github   # FastAPI SSO (GitHub only)
+fastapi-spawn add sso-microsoft # FastAPI SSO (Microsoft only)
 
 # Messaging & Async Workers
 fastapi-spawn add celery       # Celery worker + tasks/
@@ -449,7 +483,7 @@ fastapi-spawn add sse          # Server-Sent Events streaming
 fastapi-spawn add s3           # AWS S3 / MinIO storage
 fastapi-spawn add graphql      # Strawberry GraphQL schema
 fastapi-spawn add alembic      # Alembic async migrations
-fastapi-spawn add seed         # Faker database seeding script
+fastapi-spawn add seed         # Faker database seeding script (Users, Posts, Comments)
 fastapi-spawn add resend       # Resend modern email client
 fastapi-spawn add sentry       # Sentry APM integration
 fastapi-spawn add prometheus   # Prometheus metrics

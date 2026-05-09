@@ -216,7 +216,8 @@ class ProjectGenerator:
             self._render_to(v1 / "payments" / "router.py", "app/api/v1/payments/router.py.j2")
             self._render_to(v1 / "payments" / "__init__.py", "app/__init__.py.j2")
         
-        if "sso" in extras:
+        has_sso = any(e.startswith("sso") for e in extras)
+        if has_sso:
             (v1 / "auth").mkdir(parents=True, exist_ok=True)
             self._render_to(v1 / "auth" / "sso.py", "app/api/v1/auth/sso.py.j2")
             

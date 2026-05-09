@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Request, HTTPException
-from fastapi_sso.sso.google import GoogleSSO
 from app.core.config import settings
 
 router = APIRouter(prefix="/sso", tags=["auth"])
+
+{% if "sso-google" in extras or "sso" in extras %}
+from fastapi_sso.sso.google import GoogleSSO
 
 # Requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env
 google_sso = GoogleSSO(
@@ -26,11 +28,89 @@ async def google_callback(request: Request):
     if not user:
         raise HTTPException(status_code=400, detail="Failed to login via Google")
     
-    # TODO: Create or update user in database, then generate and return JWT
     return {
         "id": user.id,
         "email": user.email,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "picture": user.picture
+        "picture": user.picture,
+        "provider": "google"
     }
+{% endif %}
+
+{% if "sso-github" in extras or "sso" in extras %}
+from fastapi_sso.sso.github import GithubSSO
+
+# --- GitHub SSO ---
+
+# Requires GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in .env
+github_sso = GithubSSO(
+    client_id=getattr(settings, "GITHUB_CLIENT_ID", "placeholder"),
+    client_secret=getattr(settings, "GITHUB_CLIENT_SECRET", "placeholder"),
+    redirect_uri="http://localhost:8000/api/v1/auth/sso/github/callback",
+    allow_insecure_http=True, # Set to False in production
+)
+
+@router.get("/github/login")
+async def github_login():
+    """Redirects the user to the GitHub login page."""
+    with github_sso:
+        return await github_sso.get_login_redirect()
+
+@router.get("/github/callback")
+async def github_callback(request: Request):
+    """Process login response from GitHub and return user info."""
+    with github_sso:
+        user = await github_sso.verify_and_process(request)
+    if not user:
+        raise HTTPException(status_code=400, detail="Failed to login via GitHub")
+    
+    return {
+        "id": user.id,
+        "email": user.email,
+        "first_name": getattr(user, "first_name", None),
+        "last_name": getattr(user, "last_name", None),
+        "picture": getattr(user, "picture", None),
+        "provider": "github"
+    }
+{% endif %}
+
+{% if "sso-microsoft" in extras or "sso" in extras %}
+from fastapi_sso.sso.microsoft import MicrosoftSSO
+
+# --- Microsoft SSO ---
+
+# Requires MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in .env
+microsoft_sso = MicrosoftSSO(
+    client_id=getattr(settings, "MICROSOFT_CLIENT_ID", "placeholder"),
+    client_secret=getattr(settings, "MICROSOFT_CLIENT_SECRET", "placeholder"),
+    tenant="common", # Or your specific tenant ID
+    redirect_uri="http://localhost:8000/api/v1/auth/sso/microsoft/callback",
+    allow_insecure_http=True, # Set to False in production
+)
+
+@router.get("/microsoft/login")
+async def microsoft_login():
+    """Redirects the user to the Microsoft login page."""
+    with microsoft_sso:
+        return await microsoft_sso.get_login_redirect()
+
+@router.get("/microsoft/callback")
+async def microsoft_callback(request: Request):
+    """Process login response from Microsoft and return user info."""
+    with microsoft_sso:
+        user = await microsoft_sso.verify_and_process(request)
+    if not user:
+        raise HTTPException(status_code=400, detail="Failed to login via Microsoft")
+    
+    return {
+        "id": user.id,
+        "email": user.email,
+        "first_name": getattr(user, "first_name", None),
+        "last_name": getattr(user, "last_name", None),
+        "picture": getattr(user, "picture", None),
+        "provider": "microsoft"
+    }
+{% endif %}
+
+

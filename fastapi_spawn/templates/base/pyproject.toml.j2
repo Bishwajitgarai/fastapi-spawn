@@ -111,6 +111,10 @@ dependencies = [
     "supabase>=2.4.0",
 {% elif vector_db == "elasticsearch" %}
     "elasticsearch[async]>=8.13.0",
+{% elif vector_db == "opensearch" %}
+    "opensearch-py[async]>=2.5.0",
+{% elif vector_db == "vespa" %}
+    "pyvespa>=0.40.0",
 {% endif %}
 
 {% if has_websockets %}
