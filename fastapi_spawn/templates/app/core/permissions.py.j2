@@ -1,0 +1,52 @@
+from typing import List, Callable
+from fastapi import HTTPException, Security, status
+from pydantic import BaseModel
+
+# Mock User model for demonstration. Replace with your actual User model from app.models
+class User(BaseModel):
+    id: str
+    email: str
+    role: str
+
+def get_current_user() -> User:
+    """
+    Mock dependency. Replace this with your actual JWT/Auth dependency.
+    """
+    return User(id="123", email="user@example.com", role="user")
+
+class RequireRole:
+    """
+    RBAC Dependency.
+    Usage:
+        @router.get("/admin", dependencies=[Depends(RequireRole(["admin", "superadmin"]))])
+    """
+    def __init__(self, allowed_roles: List[str]):
+        self.allowed_roles = allowed_roles
+
+    def __call__(self, current_user: User = Security(get_current_user)) -> User:
+        if current_user.role not in self.allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have the required role to access this resource."
+            )
+        return current_user
+
+class RequirePermission:
+    """
+    Fine-grained access control dependency.
+    Usage:
+        @router.get("/data", dependencies=[Depends(RequirePermission("read:data"))])
+    """
+    def __init__(self, required_permission: str):
+        self.required_permission = required_permission
+
+    def __call__(self, current_user: User = Security(get_current_user)) -> User:
+        # Replace this logic with your actual permission checking (e.g. query DB for user permissions)
+        user_permissions = ["read:data", "write:data"] if current_user.role == "admin" else ["read:data"]
+        
+        if self.required_permission not in user_permissions:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing required permission: {self.required_permission}"
+            )
+        return current_user

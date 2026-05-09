@@ -511,6 +511,11 @@ fastapi-spawn add seed         # Faker database seeding script (Users, Posts, Co
 fastapi-spawn add resend       # Resend modern email client
 fastapi-spawn add sentry       # Sentry APM integration
 fastapi-spawn add prometheus   # Prometheus metrics
+
+# Advanced API Features
+fastapi-spawn add rbac             # Role-Based Access Control (@RequireRole decorator)
+fastapi-spawn add caching          # Redis API Response Caching (@cache decorator)
+fastapi-spawn add response-format  # Global formatted JSON response middleware
 ```
 
 *Example:*

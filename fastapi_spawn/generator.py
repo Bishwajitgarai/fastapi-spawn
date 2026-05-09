@@ -236,6 +236,19 @@ class ProjectGenerator:
         if "meilisearch" in extras:
             self._render_to(core / "search.py", "app/core/search.py.j2")
 
+        if "rbac" in extras:
+            self._render_to(core / "permissions.py", "app/core/permissions.py.j2")
+            (v1 / "permissions").mkdir(parents=True, exist_ok=True)
+            self._render_to(v1 / "permissions" / "router.py", "app/api/v1/permissions/router.py.j2")
+
+        if "caching" in extras:
+            self._render_to(core / "cache.py", "app/core/cache.py.j2")
+
+        if "response-format" in extras:
+            middleware = pkg / "middleware"
+            middleware.mkdir(exist_ok=True)
+            self._render_to(middleware / "response_format.py", "app/middleware/response_format.py.j2")
+
 
     def _generate_tasks(self, root: Path) -> None:
         """Root-level tasks/ directory."""

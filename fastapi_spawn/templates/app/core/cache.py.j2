@@ -1,0 +1,32 @@
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from redis import asyncio as aioredis
+from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+async def init_cache():
+    """
+    Initialize Redis caching backend for fastapi-cache2.
+    Call this function in your application startup event (e.g., lifespan in main.py).
+    """
+    try:
+        redis_url = getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
+        redis = aioredis.from_url(redis_url, encoding="utf8", decode_responses=True)
+        FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+        logger.info("Successfully initialized FastAPI Redis Cache.")
+    except Exception as e:
+        logger.error(f"Failed to initialize cache: {e}")
+
+# --- Usage Example ---
+#
+# from fastapi_cache.decorator import cache
+# from fastapi import APIRouter
+#
+# router = APIRouter()
+#
+# @router.get("/heavy-data")
+# @cache(expire=60)  # Caches the response for 60 seconds (TTL)
+# async def get_heavy_data():
+#     return {"data": "This response is cached!"}

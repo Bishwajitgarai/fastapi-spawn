@@ -1,0 +1,23 @@
+from fastapi import APIRouter, Depends
+from app.core.permissions import RequireRole, RequirePermission
+
+# This router restricts access to all its endpoints using the RequireRole dependency
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin", "rbac"],
+    dependencies=[Depends(RequireRole(["admin"]))]
+)
+
+@router.get("/dashboard")
+async def get_admin_dashboard():
+    """
+    This endpoint is only accessible to users with the 'admin' role.
+    """
+    return {"message": "Welcome to the secure admin dashboard!"}
+
+@router.get("/settings", dependencies=[Depends(RequirePermission("write:settings"))])
+async def update_admin_settings():
+    """
+    This endpoint requires both the 'admin' role (from the router) AND the 'write:settings' permission.
+    """
+    return {"message": "Admin settings successfully updated."}
