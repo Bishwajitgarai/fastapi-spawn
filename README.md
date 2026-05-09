@@ -35,6 +35,7 @@ fastapi-spawn new my-api
 fastapi-spawn start basic my-api
 fastapi-spawn start full-local my-api
 fastapi-spawn start full my-api
+fastapi-spawn start custom my-api
 
 # Full stack one-liner
 fastapi-spawn new my-api \
@@ -63,8 +64,23 @@ fastapi-spawn add openai
 fastapi-spawn add alembic
 fastapi-spawn add sentry
 ```
+### 💡 Pro-Tip: Starting in an Empty Folder
 
-```
+To avoid confusion with nested projects (e.g., having a `pyproject.toml` in both the root and subfolder):
+
+#### Option A: Let it create the folder (Recommended)
+1. Go to your projects directory.
+2. Run `fastapi-spawn start` (Do **not** run `uv init` first!).
+3. It will create a folder with everything inside.
+4. Open that folder in VS Code and run `uv sync`!
+
+#### Option B: Generate directly in the CURRENT folder
+If you already created a folder and opened it in VS Code:
+1. Make sure the folder is empty.
+2. Run the command with `--output .`:
+   ```bash
+   fastapi-spawn start custom my_project_name --output .
+   ```
 
 ---
 

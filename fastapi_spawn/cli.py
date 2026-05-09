@@ -233,20 +233,48 @@ def start(
         from fastapi_spawn.interactive import SPAWN_STYLE
         preset = questionary.select(
             "Which preset do you want to use?",
-            choices=["basic", "full-local", "full"],
+            choices=["custom", "basic", "full-local", "full"],
+            default="custom",
             style=SPAWN_STYLE,
         ).unsafe_ask()
         
-    if not project_name:
-        import questionary
-        from fastapi_spawn.interactive import SPAWN_STYLE
-        from fastapi_spawn.validators import questionary_validator, validate_project_name
-        project_name = questionary.text(
-            "Project name:",
-            validate=questionary_validator(validate_project_name),
-            style=SPAWN_STYLE,
-        ).unsafe_ask()
-    
+    if preset == "custom":
+        from fastapi_spawn.interactive import run_interactive_flow
+        opts = run_interactive_flow(project_name or "")
+        config = ProjectConfig(
+            project_name=opts["project_name"],
+            db=opts["db"],
+            orm=opts["orm"],
+            migration=opts.get("migration", MigrationTool.none),
+            auth=opts["auth"],
+            broker=opts["broker"],
+            cache=opts["cache"],
+            storage=opts["storage"],
+            ai=opts["ai"],
+            api_extra=opts.get("api_extra", APIExtra.none),
+            monitoring=opts["monitoring"],
+            log_lib=opts["log_lib"],
+            log_dest=opts.get("log_dest", LogDestination.local),
+            email=opts.get("email", EmailProvider.none),
+            notify=opts.get("notify", NotificationProvider.none),
+            vector_db=opts["vector_db"],
+            stack=opts["stack"],
+            ci=opts["ci"],
+            include_docker=opts["include_docker"],
+            include_tests=opts["include_tests"],
+            force=force,
+        )
+    else:
+        if not project_name:
+            import questionary
+            from fastapi_spawn.interactive import SPAWN_STYLE
+            from fastapi_spawn.validators import questionary_validator, validate_project_name
+            project_name = questionary.text(
+                "Project name:",
+                validate=questionary_validator(validate_project_name),
+                style=SPAWN_STYLE,
+            ).unsafe_ask()
+    assert project_name is not None
     if preset == "basic":
         config = ProjectConfig(
             project_name=project_name,
@@ -320,13 +348,34 @@ def start(
             force=force,
         )
     else:
-        rprint(f"[bold red]✗ Error:[/bold red] Unknown preset '{preset}'. Available presets: basic, full-local, full")
+        rprint(f"[bold red]✗ Error:[/bold red] Unknown preset '{preset}'. Available presets: basic, full-local, full, custom")
         raise typer.Exit(1)
 
     _print_summary(config)
 
+    import questionary
+    from fastapi_spawn.interactive import SPAWN_STYLE
+    
+    use_current = questionary.confirm(
+        "Do you want to generate files directly in the current directory?", default=False, style=SPAWN_STYLE
+    ).unsafe_ask()
+    
+    if use_current:
+        output_dir = Path(".")
+        # Check if directory is not empty
+        import os
+        if os.listdir("."):
+            confirm = questionary.confirm(
+                "Current directory is not empty. This may overwrite files! Proceed?", default=False, style=SPAWN_STYLE
+            ).unsafe_ask()
+            if not confirm:
+                rprint("[yellow]Aborted.[/yellow]")
+                raise typer.Exit()
+    else:
+        output_dir = output / config.project_name
+
     try:
-        generator = ProjectGenerator(config, output)
+        generator = ProjectGenerator(config, output_dir)
         project_path = generator.generate()
         rprint(f"\n[bold green]✓ Project created:[/bold green] {project_path.resolve()}")
         _print_next_steps(config)
