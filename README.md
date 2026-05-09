@@ -399,20 +399,64 @@ GraphiQL IDE is enabled in `dev` mode. Subscriptions use `graphql-transport-ws`.
 
 ---
 
-## Add Features to Existing Projects
+## 🧩 Add Features to Existing Projects (Incremental Scaffolding)
+
+Did you generate a minimal project and now realize you need WebSockets, AWS S3, or OpenAI? **No problem.** 
+
+`fastapi-spawn add` allows you to incrementally scale your project. Instead of re-generating your entire project or copying boilerplate manually, you can inject production-ready modules into your existing codebase.
 
 ```bash
-fastapi-spawn add sentry       # Sentry error tracking
-fastapi-spawn add openai       # OpenAI async client
-fastapi-spawn add alembic      # Alembic async migrations
-fastapi-spawn add s3           # AWS S3 / MinIO storage
-fastapi-spawn add celery       # Celery worker + tasks/
-fastapi-spawn add websockets   # WebSocket connection manager
-fastapi-spawn add graphql      # Strawberry GraphQL schema
-fastapi-spawn add qdrant       # Qdrant vector DB
-fastapi-spawn add chroma       # ChromaDB local vector DB
+fastapi-spawn add [FEATURE]
+```
+
+### How it works:
+1. **Generates the Module**: It creates the necessary file (e.g., `app/core/ai.py` or `app/api/v1/ws/router.py`) tailored to your project structure.
+2. **Environment Variables**: It prompts you with the exact environment variables you need to append to your `.env` and `config.py`.
+3. **Integration Guide**: It outputs a step-by-step UI snippet telling you *exactly* where to import and mount the new feature in your `main.py` or `router.py`.
+
+### All Possibilities you can `add`:
+
+You can run any of the following commands inside an existing project:
+
+```bash
+# Infrastructure & Deployment
+fastapi-spawn add docker       # Dockerfile and docker-compose.yml
 fastapi-spawn add helm         # Helm chart in infra/helm/
 fastapi-spawn add terraform    # Terraform in infra/terraform/
+fastapi-spawn add github-actions # CI/CD pipeline (.github/workflows/tests.yml)
+
+# AI & Vector DBs
+fastapi-spawn add openai       # OpenAI async client
+fastapi-spawn add anthropic    # Anthropic Claude async client
+fastapi-spawn add gemini       # Google Generative AI client
+fastapi-spawn add qdrant       # Qdrant vector DB
+fastapi-spawn add chroma       # ChromaDB local vector DB
+fastapi-spawn add pinecone     # Pinecone cloud vector DB
+
+# Messaging & Async Workers
+fastapi-spawn add celery       # Celery worker + tasks/
+fastapi-spawn add arq          # Arq async job queues using Redis
+fastapi-spawn add websockets   # WebSocket connection manager
+
+# Storage, APIs & Monitoring
+fastapi-spawn add s3           # AWS S3 / MinIO storage
+fastapi-spawn add graphql      # Strawberry GraphQL schema
+fastapi-spawn add alembic      # Alembic async migrations
+fastapi-spawn add sentry       # Sentry APM integration
+fastapi-spawn add prometheus   # Prometheus metrics
+```
+
+*Example:*
+```bash
+$ fastapi-spawn add websockets
+
+✓ Created app/core/ws_manager.py
+✓ Created app/api/v1/ws/router.py
+
+👉 Next Steps:
+1. Mount the router in app/api/v1/router.py:
+   from app.api.v1.ws.router import router as ws_router
+   router.include_router(ws_router)
 ```
 
 ---
