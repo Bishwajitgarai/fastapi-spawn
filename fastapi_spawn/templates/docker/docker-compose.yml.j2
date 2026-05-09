@@ -9,6 +9,9 @@ services:
 {% if has_relational_db and db == "postgresql" %}
       - postgres
 {% endif %}
+{% if has_relational_db and db == "mysql" %}
+      - mysql
+{% endif %}
 {% if has_mongo %}
       - mongodb
 {% endif %}
@@ -41,6 +44,9 @@ services:
 {% if has_relational_db and db == "postgresql" %}
       - POSTGRES_HOST=postgres
 {% endif %}
+{% if has_relational_db and db == "mysql" %}
+      - MYSQL_HOST=mysql
+{% endif %}
 {% if broker == "redis" or cache == "redis" %}
       - REDIS_HOST=redis
 {% endif %}
@@ -60,6 +66,23 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d {{ slug }}_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+{% endif %}
+
+{% if has_relational_db and db == "mysql" %}
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_DATABASE: {{ slug }}_db
+      MYSQL_ROOT_PASSWORD: mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -102,6 +125,9 @@ services:
 volumes:
 {% if has_relational_db and db == "postgresql" %}
   postgres_data:
+{% endif %}
+{% if has_relational_db and db == "mysql" %}
+  mysql_data:
 {% endif %}
 {% if has_mongo %}
   mongo_data:
