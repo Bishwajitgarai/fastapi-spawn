@@ -1,0 +1,45 @@
+.PHONY: help install dev run test lint format clean
+
+help:  ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+install:  ## Install dependencies
+	pip install -e .
+
+dev:  ## Install dev dependencies
+	pip install -e ".[dev]"
+
+run:  ## Run development server
+	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+{% if include_tests %}
+test:  ## Run tests
+	pytest --cov=app --cov-report=term-missing
+
+test-ci:  ## Run tests with XML report
+	pytest --cov=app --cov-report=xml
+{% endif %}
+
+lint:  ## Run linters
+	ruff check .
+	mypy app/
+
+format:  ## Auto-format code
+	ruff format .
+	ruff check --fix .
+
+clean:  ## Remove build artifacts
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+	rm -rf dist/ build/ *.egg-info .pytest_cache .coverage htmlcov/
+
+{% if has_docker %}
+docker-build:  ## Build Docker image
+	docker build -t {{ slug }} .
+
+docker-up:  ## Start all services
+	docker compose up --build
+
+docker-down:  ## Stop all services
+	docker compose down
+{% endif %}

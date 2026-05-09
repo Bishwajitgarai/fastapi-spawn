@@ -1,0 +1,73 @@
+"""AWS S3 storage utilities for {{ project_name }}."""
+
+from __future__ import annotations
+
+import boto3
+from botocore.exceptions import ClientError
+
+from app.core.config import settings
+
+
+def _get_client():
+    """Return a configured boto3 S3 client."""
+    kwargs = {
+        "region_name": settings.AWS_REGION,
+        "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
+        "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
+    }
+    if settings.AWS_S3_ENDPOINT_URL:
+        kwargs["endpoint_url"] = settings.AWS_S3_ENDPOINT_URL  # MinIO / LocalStack
+    return boto3.client("s3", **kwargs)
+
+
+def upload_file(file_path: str, object_key: str, bucket: str | None = None) -> str:
+    """
+    Upload a local file to S3.
+    Returns the public object key on success.
+    """
+    bucket = bucket or settings.AWS_S3_BUCKET
+    client = _get_client()
+    client.upload_file(file_path, bucket, object_key)
+    return object_key
+
+
+def upload_fileobj(file_obj, object_key: str, bucket: str | None = None, content_type: str = "application/octet-stream") -> str:
+    """Upload a file-like object to S3."""
+    bucket = bucket or settings.AWS_S3_BUCKET
+    client = _get_client()
+    client.upload_fileobj(
+        file_obj,
+        bucket,
+        object_key,
+        ExtraArgs={"ContentType": content_type},
+    )
+    return object_key
+
+
+def generate_presigned_url(object_key: str, expires_in: int = 3600, bucket: str | None = None) -> str:
+    """Generate a pre-signed URL for temporary read access."""
+    bucket = bucket or settings.AWS_S3_BUCKET
+    client = _get_client()
+    return client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": bucket, "Key": object_key},
+        ExpiresIn=expires_in,
+    )
+
+
+def delete_file(object_key: str, bucket: str | None = None) -> None:
+    """Delete an object from S3."""
+    bucket = bucket or settings.AWS_S3_BUCKET
+    client = _get_client()
+    client.delete_object(Bucket=bucket, Key=object_key)
+
+
+def file_exists(object_key: str, bucket: str | None = None) -> bool:
+    """Check if an object exists in S3."""
+    bucket = bucket or settings.AWS_S3_BUCKET
+    client = _get_client()
+    try:
+        client.head_object(Bucket=bucket, Key=object_key)
+        return True
+    except ClientError:
+        return False

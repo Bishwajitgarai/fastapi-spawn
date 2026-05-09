@@ -1,0 +1,76 @@
+"""AI client utilities for {{ project_name }}."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+{% if ai == "openai" %}
+from openai import AsyncOpenAI
+
+from app.core.config import settings
+
+
+@lru_cache
+def get_openai_client() -> AsyncOpenAI:
+    """Return a cached AsyncOpenAI client."""
+    return AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL or None,  # None = default api.openai.com
+    )
+
+
+async def chat_completion(
+    messages: list[dict],
+    model: str | None = None,
+    temperature: float = 0.7,
+    max_tokens: int = 1024,
+) -> str:
+    """Send a chat completion request and return the response text."""
+    client = get_openai_client()
+    response = await client.chat.completions.create(
+        model=model or settings.OPENAI_MODEL,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content or ""
+
+
+async def get_embedding(text: str, model: str | None = None) -> list[float]:
+    """Return an embedding vector for the given text."""
+    client = get_openai_client()
+    response = await client.embeddings.create(
+        model=model or settings.OPENAI_EMBEDDING_MODEL,
+        input=text,
+    )
+    return response.data[0].embedding
+
+{% elif ai == "anthropic" %}
+import anthropic
+
+from app.core.config import settings
+
+
+@lru_cache
+def get_anthropic_client() -> anthropic.AsyncAnthropic:
+    """Return a cached AsyncAnthropic client."""
+    return anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+
+async def chat_completion(
+    messages: list[dict],
+    system: str = "You are a helpful assistant.",
+    model: str | None = None,
+    max_tokens: int = 1024,
+) -> str:
+    """Send a message to Claude and return the response text."""
+    client = get_anthropic_client()
+    response = await client.messages.create(
+        model=model or settings.ANTHROPIC_MODEL,
+        max_tokens=max_tokens,
+        system=system,
+        messages=messages,
+    )
+    return response.content[0].text
+
+{% endif %}

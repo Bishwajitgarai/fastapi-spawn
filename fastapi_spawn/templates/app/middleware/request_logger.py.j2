@@ -1,0 +1,100 @@
+"""
+Request logging middleware — injects request ID, logs response time,
+and exposes X-Request-ID / X-Response-Time headers.
+"""
+
+from __future__ import annotations
+
+import time
+import uuid
+from contextvars import ContextVar
+from typing import Optional
+
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+
+# ── Context variables (per-request, async-safe) ────────────────────────────
+_request_id_ctx: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
+_client_ip_ctx: ContextVar[Optional[str]] = ContextVar("client_ip", default=None)
+
+
+def set_request_id(value: Optional[str]) -> None:
+    _request_id_ctx.set(value)
+
+
+def get_request_id() -> Optional[str]:
+    return _request_id_ctx.get()
+
+
+def set_client_ip(value: Optional[str]) -> None:
+    _client_ip_ctx.set(value)
+
+
+def get_client_ip() -> Optional[str]:
+    return _client_ip_ctx.get()
+
+
+def _extract_client_ip(request: Request) -> str:
+    """Respect X-Forwarded-For / X-Real-IP from reverse proxies."""
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    real = request.headers.get("X-Real-IP")
+    if real:
+        return real.strip()
+    return request.client.host if request.client else "-"
+
+
+# ── Middleware ─────────────────────────────────────────────────────────────
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    Per-request middleware that:
+      - Assigns / forwards a unique X-Request-ID
+      - Captures client IP (X-Forwarded-For aware)
+      - Logs method, path, status code, and duration
+      - Appends X-Request-ID and X-Response-Time to every response
+    """
+
+    async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[override]
+        # ── Request ID ─────────────────────────────────────────────────
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        set_request_id(request_id)
+        request.state.request_id = request_id
+
+        # ── Client IP ──────────────────────────────────────────────────
+        client_ip = _extract_client_ip(request)
+        set_client_ip(client_ip)
+        request.state.client_ip = client_ip
+
+        start = time.perf_counter()
+
+        from app.core.logger import logger
+        logger.info("→ %s %s  rid=%s  ip=%s", request.method, request.url.path, request_id, client_ip)
+
+        try:
+            response: Response = await call_next(request)
+            duration_ms = (time.perf_counter() - start) * 1000
+
+            response.headers["X-Request-ID"] = request_id
+            response.headers["X-Response-Time"] = f"{duration_ms:.2f}ms"
+
+            logger.info(
+                "✓ %s %s  %d  %.2fms  rid=%s",
+                request.method, request.url.path,
+                response.status_code, duration_ms, request_id,
+            )
+            return response
+
+        except Exception as exc:
+            duration_ms = (time.perf_counter() - start) * 1000
+            logger.error(
+                "✗ %s %s  %s: %s  %.2fms  rid=%s",
+                request.method, request.url.path,
+                type(exc).__name__, exc, duration_ms, request_id,
+            )
+            raise
+        finally:
+            set_request_id(None)
+            set_client_ip(None)

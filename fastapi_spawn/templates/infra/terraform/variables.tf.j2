@@ -1,0 +1,17 @@
+variable "aws_region" {
+  description = "AWS region to deploy to"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "app_name" {
+  description = "Application name"
+  type        = string
+  default     = "{{ slug }}"
+}
+
+variable "container_port" {
+  description = "Port the container listens on"
+  type        = number
+  default     = 8000
+}

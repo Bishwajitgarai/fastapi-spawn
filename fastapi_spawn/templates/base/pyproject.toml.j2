@@ -1,0 +1,129 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "{{ project_name }}"
+version = "0.1.0"
+description = "A production-ready FastAPI application"
+requires-python = ">=3.10"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+{% if log_lib == "loguru" %}
+    "loguru>=0.7.2",
+{% elif log_lib == "structlog" %}
+    "structlog>=24.1.0",
+{% endif %}
+{% if has_relational_db and orm == "sqlalchemy" %}
+    "sqlalchemy[asyncio]>=2.0.0",
+{% if db == "postgresql" %}
+    "asyncpg>=0.29.0",
+{% elif db == "mysql" %}
+    "aiomysql>=0.2.0",
+{% elif db == "sqlite" %}
+    "aiosqlite>=0.20.0",
+{% endif %}
+{% endif %}
+{% if has_relational_db and orm == "tortoise" %}
+    "tortoise-orm>=0.21.0",
+{% endif %}
+{% if has_migration and migration == "alembic" %}
+    "alembic>=1.13.0",
+{% elif has_migration and migration == "aerich" %}
+    "aerich>=0.7.2",
+{% endif %}
+{% if has_mongo and orm == "beanie" %}
+    "beanie>=1.25.0",
+    "motor>=3.4.0",
+{% endif %}
+{% if auth == "jwt" or auth == "oauth2" %}
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.9",
+{% elif auth == "api-key" %}
+    "python-multipart>=0.0.9",
+{% endif %}
+{% if broker == "redis" or broker == "rabbitmq" %}
+    "celery[redis]>=5.3.6",
+{% elif broker == "kafka" %}
+    "aiokafka>=0.10.0",
+{% endif %}
+{% if cache == "redis" or broker == "redis" %}
+    "redis[hiredis]>=5.0.0",
+{% elif cache == "memcached" %}
+    "aiomcache>=0.8.0",
+{% endif %}
+{% if has_s3 %}
+    "boto3>=1.34.0",
+{% endif %}
+{% if ai == "openai" %}
+    "openai>=1.30.0",
+{% elif ai == "anthropic" %}
+    "anthropic>=0.28.0",
+{% endif %}
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "httpx>=0.27.0",
+    "anyio>=4.3.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pre-commit>=3.7.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "httpx>=0.27.0",
+    "anyio>=4.3.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pre-commit>=3.7.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=app --cov-report=term-missing"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+
+# ── uv run scripts ─────────────────────────────────────────────────────────
+# Usage: uv run <script-name>
+[tool.uv.scripts]
+dev      = "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+start    = "python main.py"
+test     = "pytest --cov=app --cov-report=term-missing"
+lint     = "ruff check ."
+format   = "ruff format ."
+typecheck = "mypy app/"
+{% if has_alembic %}
+migrate  = "alembic upgrade head"
+rollback = "alembic downgrade -1"
+makemig  = "alembic revision --autogenerate -m"
+{% endif %}
+{% if has_broker %}
+worker   = "celery -A tasks.celery_app worker --loglevel=info"
+beat     = "celery -A tasks.celery_app beat --loglevel=info"
+{% endif %}

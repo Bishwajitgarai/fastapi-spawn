@@ -1,0 +1,27 @@
+"""Sample Celery tasks for {{ project_name }}."""
+
+from __future__ import annotations
+
+import time
+
+from tasks.celery_app import celery_app
+
+
+@celery_app.task(bind=True, name="tasks.sample.add", max_retries=3)
+def add(self, x: int, y: int) -> int:
+    """Simple addition task — use as a template."""
+    return x + y
+
+
+@celery_app.task(bind=True, name="tasks.sample.slow_task", max_retries=3)
+def slow_task(self, seconds: int = 5) -> str:
+    """Simulate a long-running task."""
+    time.sleep(seconds)
+    return f"Completed after {seconds}s"
+
+
+@celery_app.task(bind=True, name="tasks.sample.send_email", max_retries=3)
+def send_email(self, to: str, subject: str, body: str) -> dict:
+    """Stub email sending task. Replace with real email logic."""
+    # TODO: integrate with SendGrid / SES / SMTP
+    return {"status": "sent", "to": to, "subject": subject}

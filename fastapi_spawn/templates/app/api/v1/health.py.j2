@@ -1,0 +1,40 @@
+"""Health check endpoints — /health, /readiness, /liveness."""
+
+from __future__ import annotations
+
+import time
+
+from fastapi import APIRouter
+from pydantic import BaseModel
+
+router = APIRouter(prefix="/health")
+
+_start_time = time.time()
+
+
+class HealthResponse(BaseModel):
+    status: str
+    uptime_seconds: float
+    version: str = "0.1.0"
+    service: str = "{{ project_name }}"
+
+
+@router.get("", response_model=HealthResponse, summary="Basic health check")
+async def health() -> HealthResponse:
+    """Returns service status and uptime."""
+    return HealthResponse(
+        status="ok",
+        uptime_seconds=round(time.time() - _start_time, 2),
+    )
+
+
+@router.get("/readiness", summary="Readiness probe (Kubernetes)")
+async def readiness() -> dict:
+    """Indicates whether the service is ready to accept traffic."""
+    return {"status": "ready"}
+
+
+@router.get("/liveness", summary="Liveness probe (Kubernetes)")
+async def liveness() -> dict:
+    """Indicates whether the service process is alive."""
+    return {"status": "alive"}

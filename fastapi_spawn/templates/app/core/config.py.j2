@@ -1,0 +1,177 @@
+"""Application configuration using Pydantic Settings v2."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+from typing import Any
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # ── App ────────────────────────────────────────────────────────────────
+    APP_NAME: str = "{{ project_name }}"
+    APP_ENV: str = "development"
+    DEBUG: bool = False
+    API_V1_PREFIX: str = "/api/v1"
+    SECRET_KEY: str = "change-me"
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",")]
+        return v
+
+{% if db == "postgresql" %}
+    # ── PostgreSQL ─────────────────────────────────────────────────────────
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: str = "5432"
+    POSTGRES_DB: str = "{{ slug }}_db"
+
+    @property
+    def database_url(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+{% elif db == "mysql" %}
+    # ── MySQL ──────────────────────────────────────────────────────────────
+    MYSQL_USER: str = "root"
+    MYSQL_PASSWORD: str = "mysql"
+    MYSQL_HOST: str = "localhost"
+    MYSQL_PORT: str = "3306"
+    MYSQL_DB: str = "{{ slug }}_db"
+
+    @property
+    def database_url(self) -> str:
+        return (
+            f"mysql+aiomysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}"
+            f"@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
+        )
+
+{% elif db == "sqlite" %}
+    # ── SQLite ─────────────────────────────────────────────────────────────
+    SQLITE_FILE: str = "{{ slug }}.db"
+
+    @property
+    def database_url(self) -> str:
+        return f"sqlite+aiosqlite:///./{self.SQLITE_FILE}"
+
+{% endif %}
+{% if has_mongo %}
+    # ── MongoDB ────────────────────────────────────────────────────────────
+    MONGODB_USER: str = "mongo"
+    MONGODB_PASSWORD: str = "mongo"
+    MONGODB_HOST: str = "localhost"
+    MONGODB_PORT: str = "27017"
+    MONGODB_DB: str = "{{ slug }}_db"
+
+    @property
+    def mongodb_url(self) -> str:
+        if self.MONGODB_USER and self.MONGODB_PASSWORD:
+            return (
+                f"mongodb://{self.MONGODB_USER}:{self.MONGODB_PASSWORD}"
+                f"@{self.MONGODB_HOST}:{self.MONGODB_PORT}"
+            )
+        return f"mongodb://{self.MONGODB_HOST}:{self.MONGODB_PORT}"
+
+{% endif %}
+{% if broker == "redis" or cache == "redis" %}
+    # ── Redis ──────────────────────────────────────────────────────────────
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: str = "6379"
+    REDIS_PASSWORD: str = ""
+    REDIS_DB: str = "0"
+
+    @property
+    def redis_url(self) -> str:
+        if self.REDIS_PASSWORD:
+            return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+{% endif %}
+{% if broker == "rabbitmq" %}
+    # ── RabbitMQ ───────────────────────────────────────────────────────────
+    RABBITMQ_USER: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+    RABBITMQ_HOST: str = "localhost"
+    RABBITMQ_PORT: str = "5672"
+    RABBITMQ_VHOST: str = "/"
+
+    @property
+    def rabbitmq_url(self) -> str:
+        return (
+            f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}"
+            f"@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
+        )
+
+{% endif %}
+{% if broker == "kafka" %}
+    # ── Kafka ──────────────────────────────────────────────────────────────
+    KAFKA_HOST: str = "localhost"
+    KAFKA_PORT: str = "9092"
+
+    @property
+    def kafka_bootstrap_servers(self) -> str:
+        return f"{self.KAFKA_HOST}:{self.KAFKA_PORT}"
+
+{% endif %}
+{% if has_s3 %}
+    # ── AWS S3 ─────────────────────────────────────────────────────────────
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_REGION: str = "us-east-1"
+    AWS_S3_BUCKET: str = "{{ slug }}-bucket"
+    AWS_S3_ENDPOINT_URL: str = ""  # Override for MinIO / LocalStack
+
+{% endif %}
+{% if has_auth %}
+    # ── Auth ───────────────────────────────────────────────────────────────
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ALGORITHM: str = "HS256"
+
+{% endif %}
+{% if ai == "openai" %}
+    # ── OpenAI ─────────────────────────────────────────────────────────────
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o"
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    OPENAI_BASE_URL: str = ""  # Override for Azure OpenAI, LM Studio, local endpoints
+
+{% elif ai == "anthropic" %}
+    # ── Anthropic ──────────────────────────────────────────────────────────
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
+
+{% endif %}
+
+    # ── Helpers ────────────────────────────────────────────────────────────
+    @property
+    def is_development(self) -> bool:
+        return self.APP_ENV == "development"
+
+    @property
+    def is_production(self) -> bool:
+        return self.APP_ENV == "production"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings: Settings = get_settings()

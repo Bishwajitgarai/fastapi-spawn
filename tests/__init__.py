@@ -1,0 +1,1 @@
+# fastapi-spawn pytest config

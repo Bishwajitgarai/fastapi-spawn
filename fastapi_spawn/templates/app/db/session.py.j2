@@ -1,0 +1,84 @@
+"""Database session factory."""
+
+from __future__ import annotations
+
+{% if has_relational_db and orm == "sqlalchemy" %}
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
+
+from app.core.config import settings
+
+engine = create_async_engine(
+    settings.database_url,
+    echo=settings.DEBUG,
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20,
+)
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
+    autocommit=False,
+)
+
+
+class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy ORM models."""
+    pass
+
+
+async def get_session() -> AsyncSession:  # type: ignore[return]
+    """FastAPI dependency that yields an async DB session."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+{% elif has_relational_db and orm == "tortoise" %}
+from tortoise import Tortoise
+
+from app.core.config import settings
+
+TORTOISE_ORM = {
+    "connections": {"default": settings.database_url},
+    "apps": {
+        "models": {
+            "models": ["app.models", "aerich.models"],
+            "default_connection": "default",
+        },
+    },
+}
+
+
+async def init_db() -> None:
+    await Tortoise.init(config=TORTOISE_ORM)
+    await Tortoise.generate_schemas()
+
+
+async def close_db() -> None:
+    await Tortoise.close_connections()
+
+{% elif has_mongo and orm == "beanie" %}
+import motor.motor_asyncio
+from beanie import init_beanie
+
+from app.core.config import settings
+
+
+async def init_db() -> None:
+    client = motor.motor_asyncio.AsyncIOMotorClient(settings.mongodb_url)
+    database = client[settings.MONGODB_DB]
+    # TODO: Add your Beanie Document models to the list below
+    await init_beanie(database=database, document_models=[])
+
+{% else %}
+# No database configured. Add your connection logic here.
+{% endif %}

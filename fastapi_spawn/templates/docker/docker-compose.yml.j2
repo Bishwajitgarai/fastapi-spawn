@@ -1,0 +1,97 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+{% if has_relational_db and db == "postgresql" %}
+      - postgres
+{% endif %}
+{% if has_mongo %}
+      - mongodb
+{% endif %}
+{% if broker == "redis" or cache == "redis" %}
+      - redis
+{% endif %}
+{% if broker == "rabbitmq" %}
+      - rabbitmq
+{% endif %}
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+{% if has_broker and broker != "kafka" %}
+  worker:
+    build: .
+    command: celery -A tasks.celery_app worker --loglevel=info --concurrency=2
+    env_file:
+      - .env
+    depends_on:
+      - app
+    restart: unless-stopped
+{% endif %}
+
+{% if has_relational_db and db == "postgresql" %}
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: {{ slug }}_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d {{ slug }}_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+{% endif %}
+
+{% if has_mongo %}
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+{% endif %}
+
+{% if broker == "redis" or cache == "redis" %}
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+{% endif %}
+
+{% if broker == "rabbitmq" %}
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+{% endif %}
+
+volumes:
+{% if has_relational_db and db == "postgresql" %}
+  postgres_data:
+{% endif %}
+{% if has_mongo %}
+  mongo_data:
+{% endif %}
+{% if broker == "redis" or cache == "redis" %}
+  redis_data:
+{% endif %}
