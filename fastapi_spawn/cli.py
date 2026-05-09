@@ -241,8 +241,9 @@ def start(
     if preset == "custom":
         from fastapi_spawn.interactive import run_interactive_flow
         opts = run_interactive_flow(project_name or "")
+        project_name = opts["project_name"]
         config = ProjectConfig(
-            project_name=opts["project_name"],
+            project_name=project_name,
             db=opts["db"],
             orm=opts["orm"],
             migration=opts.get("migration", MigrationTool.none),
