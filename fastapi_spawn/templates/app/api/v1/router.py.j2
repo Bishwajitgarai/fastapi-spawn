@@ -7,6 +7,12 @@ from app.api.v1.auth.router import router as auth_router
 {% if has_websockets %}
 from app.api.v1.ws.router import router as ws_router
 {% endif %}
+{% if "rbac" in extras %}
+from app.api.v1.permissions.router import router as permissions_router
+{% endif %}
+{% if "uploads" in extras %}
+from app.api.v1.uploads.router import router as uploads_router
+{% endif %}
 
 
 router = APIRouter()
@@ -17,4 +23,10 @@ router.include_router(auth_router)
 {% endif %}
 {% if has_websockets %}
 router.include_router(ws_router)
+{% endif %}
+{% if "rbac" in extras %}
+router.include_router(permissions_router)
+{% endif %}
+{% if "uploads" in extras %}
+router.include_router(uploads_router)
 {% endif %}
