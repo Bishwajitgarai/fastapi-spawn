@@ -76,11 +76,9 @@ To avoid confusion with nested projects (e.g., having a `pyproject.toml` in both
 
 #### Option B: Generate directly in the CURRENT folder
 If you already created a folder and opened it in VS Code:
-1. Make sure the folder is empty.
-2. Run the command with `--output .`:
-   ```bash
-   fastapi-spawn start custom my_project_name --output .
-   ```
+1. Run `fastapi-spawn start`.
+2. When it asks *"Do you want to generate files directly in the current directory?"*, select **Yes**.
+3. It will generate all files directly in your current folder without creating a subfolder! (New in 0.4.29!)
 
 ---
 
@@ -567,14 +565,6 @@ $ fastapi-spawn add websockets
 | `beanie` | mongodb |
 | `none` | any |
 
-## Recent Updates (v0.4.22)
-
-- **Ollama Integration**: Updated default model to `tinyllama` for faster testing.
-- **Supabase Fixes**: Fixed missing environment variables in configuration templates.
-- **Frontend & Admin Mounted**: Automatically mounts the static frontend at `/` and the `sqladmin` dashboard at `/admin` (if enabled).
-- **Service Health Checks**: Added connection checks for Elasticsearch, OpenSearch, Kafka, Vespa, Ollama, DuckDB, Chroma, and Supabase in the generated `/health/services` endpoint.
-
----
 
 ## Contributing
 

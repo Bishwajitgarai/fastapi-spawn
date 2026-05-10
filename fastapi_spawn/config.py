@@ -47,6 +47,7 @@ class ProjectConfig:
     include_makefile: bool = True
     dry_run: bool = False
     force: bool = False
+    create_project_folder: bool = True
     extras: list[str] = field(default_factory=list)
     # Derived (post-init)
     package_name: str = field(default="", init=False)
@@ -80,7 +81,7 @@ class ProjectConfig:
 
     @property
     def has_docker(self) -> bool:
-        return self.include_docker and self.stack != Stack.minimal
+        return self.include_docker
 
     @property
     def has_infra(self) -> bool:

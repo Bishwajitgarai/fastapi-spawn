@@ -64,9 +64,12 @@ class ProjectGenerator:
     def generate(self) -> Path:
         if self.config.dry_run:
             self._dry_run_display()
-            return self.output_dir / self.config.project_name
+            return self.output_dir if not self.config.create_project_folder else self.output_dir / self.config.project_name
 
-        project_path = self.output_dir / self.config.project_name
+        if self.config.create_project_folder:
+            project_path = self.output_dir / self.config.project_name
+        else:
+            project_path = self.output_dir
 
         if project_path.exists() and self.config.force:
             shutil.rmtree(project_path)
@@ -115,7 +118,7 @@ class ProjectGenerator:
                 if self.config.include_makefile:
                     self._render_to(staging / "Makefile", "base/Makefile.j2")
 
-            shutil.copytree(str(staging), str(project_path))
+            shutil.copytree(str(staging), str(project_path), dirs_exist_ok=True)
 
         return project_path
 

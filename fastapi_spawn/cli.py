@@ -277,6 +277,7 @@ def start(
         
         if use_current:
             output_dir = Path(".")
+            config.create_project_folder = False
             import os
             if os.listdir("."):
                 confirm = questionary.confirm(
@@ -396,6 +397,7 @@ def start(
     
     if use_current:
         output_dir = Path(".")
+        config.create_project_folder = False
         # Check if directory is not empty
         import os
         if os.listdir("."):
