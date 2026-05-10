@@ -625,10 +625,10 @@ def _print_summary(config: ProjectConfig) -> None:
 
 
 def _print_next_steps(config: ProjectConfig) -> None:
-    steps = [
-        f"  [bold cyan]cd {config.project_name}[/bold cyan]",
-        "  [bold cyan]uv sync[/bold cyan]",
-    ]
+    steps = []
+    if config.create_project_folder:
+        steps.append(f"  [bold cyan]cd {config.project_name}[/bold cyan]")
+    steps.append("  [bold cyan]uv sync[/bold cyan]")
     if config.has_alembic:
         steps.append("  [bold cyan]uv run migrate[/bold cyan]")
     if config.has_docker:
