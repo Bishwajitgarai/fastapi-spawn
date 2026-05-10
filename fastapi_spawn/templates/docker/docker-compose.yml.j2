@@ -30,6 +30,7 @@ services:
 {% endif %}
     volumes:
       - .:/app
+      - /app/.venv
 {% if (has_relational_db and db != "sqlite") or has_mongo or broker == "redis" or cache == "redis" or broker == "rabbitmq" or vector_db == "qdrant" or vector_db == "elasticsearch" or vector_db == "opensearch" or ai == "ollama" %}
     environment:
 {% if has_relational_db and db == "postgresql" %}

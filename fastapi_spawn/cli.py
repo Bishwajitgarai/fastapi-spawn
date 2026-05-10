@@ -470,6 +470,115 @@ def validate_config(
     console.print("[dim]Full TOML validation coming in a future release.[/dim]")
 
 
+@app.command("inspect", help="Inspect and fix corrupted or missing tracking files.")
+def inspect_project(
+    project_dir: Path = typer.Option(Path("."), "--dir", "-d", help="Path to the existing project"),
+) -> None:
+    """Inspect and fix corrupted or missing tracking files."""
+    import json
+    _print_banner()
+    
+    if not project_dir.exists():
+        console.print(f"[bold red]✗ Directory not found:[/bold red] {project_dir.resolve()}")
+        raise typer.Exit(1)
+
+    config_path = project_dir / ".fastapi-spawn.json"
+    project_status: dict = {}
+    corrupted = False
+
+    if config_path.exists():
+        try:
+            project_status = json.loads(config_path.read_text(encoding="utf-8"))
+            console.print("[bold green]✓ Found .fastapi-spawn.json[/bold green]")
+        except Exception:
+            console.print("[bold yellow]⚠ .fastapi-spawn.json is corrupted.[/bold yellow]")
+            corrupted = True
+    else:
+        console.print("[bold yellow]⚠ .fastapi-spawn.json is missing.[/bold yellow]")
+        corrupted = True
+
+    if corrupted:
+        console.print("[cyan]Attempting to reconstruct project state...[/cyan]")
+        inferred_features = []
+        
+        # Check pyproject.toml for deps
+        pyproject_path = project_dir / "pyproject.toml"
+        content = ""
+        if pyproject_path.exists():
+            content = pyproject_path.read_text(encoding="utf-8")
+            if "fastapi-sso" in content or "pyjwt" in content:
+                inferred_features.append("auth")
+            if "boto3" in content:
+                inferred_features.append("s3")
+            if "google-cloud-storage" in content:
+                inferred_features.append("gcs")
+            if "cloudinary" in content:
+                inferred_features.append("cloudinary")
+            if "openai" in content:
+                inferred_features.append("openai")
+            if "anthropic" in content:
+                inferred_features.append("anthropic")
+            if "google-genai" in content or "google-generativeai" in content:
+                inferred_features.append("gemini")
+            if "ollama" in content:
+                inferred_features.append("ollama")
+            if "alembic" in content:
+                inferred_features.append("alembic")
+            if "celery" in content:
+                inferred_features.append("celery")
+            if "arq" in content:
+                inferred_features.append("arq")
+            if "redis" in content:
+                inferred_features.append("redis")
+            if "aiokafka" in content:
+                inferred_features.append("kafka")
+            if "sentry-sdk" in content:
+                inferred_features.append("sentry")
+            if "prometheus-fastapi-instrumentator" in content:
+                inferred_features.append("prometheus")
+            if "opentelemetry" in content:
+                inferred_features.append("opentelemetry")
+            if "sendgrid" in content:
+                inferred_features.append("sendgrid")
+            if "resend" in content:
+                inferred_features.append("resend")
+            if "qdrant" in content:
+                inferred_features.append("qdrant")
+
+        # Check for files
+        if (project_dir / "app" / "core" / "security.py").exists():
+            if "auth" not in inferred_features:
+                inferred_features.append("auth")
+        if (project_dir / "migrations" / "env.py").exists():
+            if "alembic" not in inferred_features:
+                inferred_features.append("alembic")
+
+        project_status["installed_features"] = list(set(inferred_features))
+        project_status["project_name"] = project_dir.name
+        
+        # Guess DB
+        if "asyncpg" in content or "psycopg" in content:
+            project_status["db"] = "postgresql"
+        elif "aiomysql" in content or "pymysql" in content:
+            project_status["db"] = "mysql"
+        elif "motor" in content:
+            project_status["db"] = "mongodb"
+        else:
+            project_status["db"] = "sqlite"
+
+        try:
+            config_path.write_text(json.dumps(project_status, indent=2), encoding="utf-8")
+            console.print("[bold green]✓ Reconstructed and saved .fastapi-spawn.json[/bold green]")
+        except Exception as e:
+            console.print(f"[bold red]✗ Failed to save tracking file: {e}[/bold red]")
+            raise typer.Exit(1)
+
+    console.print(f"\n[bold cyan]Project Status:[/bold cyan]")
+    console.print(f"  Name: {project_status.get('project_name', 'Unknown')}")
+    console.print(f"  DB: {project_status.get('db', 'Unknown')}")
+    console.print(f"  Installed Features: {', '.join(project_status.get('installed_features', [])) or 'None'}")
+
+
 # ── `add` command ──────────────────────────────────────────────────────────────
 
 _ADDABLE_FEATURES = {
