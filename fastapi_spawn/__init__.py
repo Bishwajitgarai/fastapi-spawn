@@ -1,6 +1,12 @@
 """fastapi-spawn — Production-ready FastAPI project scaffolding CLI."""
 
-__version__ = "0.4.22"
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("fastapi-spawn")
+except PackageNotFoundError:
+    __version__ = "0.4.37"  # Fallback
+
 __author__ = "Bishwajit Garai"
 __email__ = "bishwajitgarai@gmail.com"
 __license__ = "MIT"

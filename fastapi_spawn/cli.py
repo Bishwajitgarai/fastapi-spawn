@@ -519,10 +519,23 @@ _ADDABLE_FEATURES = {
 
 @app.command("add", help="Add a feature to an [bold]existing[/bold] fastapi-spawn project.")
 def add_feature(
-    feature: str = typer.Argument(..., help=f"Feature to add. Run 'fastapi-spawn add --help' to list all."),
+    feature: Optional[str] = typer.Argument(None, help="Feature to add. Leave blank to see all available features."),
     project_dir: Path = typer.Option(Path("."), "--dir", "-d", help="Path to the existing project"),
 ) -> None:
     _print_banner()
+    
+    if not feature:
+        console.print("\n[bold cyan]Available features to add:[/bold cyan]\n")
+        table = Table(box=None)
+        table.add_column("Feature", style="bold green", justify="left")
+        table.add_column("Description", style="white", justify="left")
+        
+        for k, v in _ADDABLE_FEATURES.items():
+            table.add_row(k, v)
+            
+        console.print(table)
+        console.print("\n[dim]Run 'fastapi-spawn add <feature>' to add a feature.[/dim]\n")
+        raise typer.Exit(0)
 
     if feature not in _ADDABLE_FEATURES:
         console.print(
