@@ -60,6 +60,13 @@ services:
 {% if ai == "ollama" %}
       - OLLAMA_HOST=ollama
 {% endif %}
+{% if broker == "kafka" or "kafka" in extras %}
+      - KAFKA_HOST=kafka
+{% endif %}
+{% if broker == "celery" or "celery" in extras %}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+{% endif %}
 {% endif %}
     restart: unless-stopped
 

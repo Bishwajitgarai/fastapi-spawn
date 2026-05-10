@@ -726,19 +726,23 @@ def add_feature(
         )
         ctx = {
             "project_name": project_status.get("project_name", project_dir.name),
+            "slug": project_dir.name.lower().replace("-", "_").replace(" ", "_"),
             "db": project_status.get("db", "postgresql"),
             "orm": project_status.get("orm", "sqlalchemy"),
+            "broker": feature if feature in ("celery", "arq", "rabbitmq", "kafka") else project_status.get("broker", "redis"),
             "has_auth": feature == "auth" or "auth" in installed_features,
             "has_alembic": feature == "alembic" or "alembic" in installed_features,
             "has_broker": feature in ("celery", "arq") or any(f in installed_features for f in ("celery", "arq")),
             "has_s3": feature in ("s3", "gcs", "cloudinary") or any(f in installed_features for f in ("s3", "gcs", "cloudinary")),
             "has_ai": feature in ("openai", "anthropic", "gemini", "ollama", "langchain", "llamaindex"),
-            "ai_provider": feature if feature in ("openai", "anthropic", "gemini", "ollama", "langchain", "llamaindex") else project_status.get("ai", "none"),
-            "storage_provider": feature if feature in ("s3", "gcs", "cloudinary") else project_status.get("storage", "none"),
-            "email_provider": feature if feature in ("sendgrid", "smtp", "ses", "resend") else project_status.get("email", "none"),
-            "notify_provider": feature if feature in ("slack", "discord") else project_status.get("notify", "none"),
+            "ai": feature if feature in ("openai", "anthropic", "gemini", "ollama", "langchain", "llamaindex") else project_status.get("ai", "none"),
+            "storage": feature if feature in ("s3", "gcs", "cloudinary") else project_status.get("storage", "none"),
+            "email": feature if feature in ("sendgrid", "smtp", "ses", "resend") else project_status.get("email", "none"),
+            "notify": feature if feature in ("slack", "discord") else project_status.get("notify", "none"),
             "vector_db": feature if feature in ("qdrant", "chroma", "pinecone", "elasticsearch") else project_status.get("vector_db", "none"),
             "monitoring": feature if feature in ("sentry", "prometheus", "opentelemetry") else project_status.get("monitoring", "none"),
+            "has_sentry": feature == "sentry" or "sentry" in installed_features,
+            "has_prometheus": feature == "prometheus" or "prometheus" in installed_features,
         }
         for template_path, dest_rel in files:
             dest = project_dir / dest_rel
