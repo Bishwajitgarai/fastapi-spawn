@@ -45,15 +45,13 @@ class _ContextFilter(logging.Filter):
 _FMT = "%(asctime)s | %(levelname)-8s | [%(request_id)s] [%(client_ip)s] | %(name)s | %(message)s"
 _formatter = logging.Formatter(_FMT, datefmt="%Y-%m-%d %H:%M:%S")
 
-# ── Logger setup ───────────────────────────────────────────────────────────
-
 logger = logging.getLogger()
 logger.setLevel(settings.LOG_LEVEL)
-logger.addFilter(_ContextFilter())
 
 # Console handler
 _console_handler = logging.StreamHandler()
 _console_handler.setFormatter(_formatter)
+_console_handler.addFilter(_ContextFilter())
 logger.addHandler(_console_handler)
 
 {% if log_dest == "local" %}
@@ -68,6 +66,7 @@ _file_handler = TimedRotatingFileHandler(
     encoding="utf-8",
 )
 _file_handler.setFormatter(_formatter)
+_file_handler.addFilter(_ContextFilter())
 logger.addHandler(_file_handler)
 
 {% elif log_dest == "cloudwatch" %}
