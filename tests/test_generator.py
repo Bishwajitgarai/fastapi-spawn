@@ -65,20 +65,20 @@ class TestProjectGenerator:
         assert app.is_dir()
         assert (app / "main.py").exists()
         assert (app / "core" / "config.py").exists()
-        assert (app / "core" / "logging.py").exists()
-        assert (app / "api" / "v1" / "health.py").exists()
+        assert (app / "core" / "logger.py").exists()
+        assert (app / "api" / "v1" / "health" / "router.py").exists()
 
     def test_no_auth_files_when_auth_none(self, minimal_config, tmp_path):
         gen = ProjectGenerator(minimal_config, tmp_path)
         project_path = gen.generate()
         assert not (project_path / "app" / "core" / "security.py").exists()
-        assert not (project_path / "app" / "api" / "v1" / "auth.py").exists()
+        assert not (project_path / "app" / "api" / "v1" / "auth" / "router.py").exists()
 
     def test_auth_files_generated(self, full_config, tmp_path):
         gen = ProjectGenerator(full_config, tmp_path)
         project_path = gen.generate()
         assert (project_path / "app" / "core" / "security.py").exists()
-        assert (project_path / "app" / "api" / "v1" / "auth.py").exists()
+        assert (project_path / "app" / "api" / "v1" / "auth" / "router.py").exists()
 
     def test_tasks_generated_at_root(self, full_config, tmp_path):
         gen = ProjectGenerator(full_config, tmp_path)

@@ -65,7 +65,7 @@ MONGODB_DB={{ slug }}_db
 # =============================================================================
 # CACHE & MESSAGING
 # =============================================================================
-{% if broker == "redis" or cache == "redis" or broker == "arq" %}
+{% if broker == "redis" or cache == "redis" or broker == "arq" or "caching" in extras or "redis" in extras or "arq" in extras %}
 # Redis (active) — assembled in code as redis://:PASS@HOST:PORT/DB
 REDIS_HOST=localhost
 REDIS_PORT=6379
@@ -78,6 +78,7 @@ REDIS_DB=0
 # REDIS_PASSWORD=
 # REDIS_DB=0
 {% endif %}
+
 {% if broker == "rabbitmq" %}
 # RabbitMQ (active) — assembled in code as amqp://...
 RABBITMQ_USER=guest
@@ -86,20 +87,27 @@ RABBITMQ_HOST=localhost
 RABBITMQ_PORT=5672
 RABBITMQ_VHOST=/
 {% endif %}
-{% if broker == "kafka" %}
+
+{% if broker == "kafka" or "kafka" in extras %}
 # Kafka (active)
 KAFKA_HOST=localhost
 KAFKA_PORT=9092
 {% endif %}
 
+{% if broker == "celery" or "celery" in extras %}
+# Celery (active)
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+{% endif %}
+
 # =============================================================================
 # AUTH & SECURITY
 # =============================================================================
-{% if has_auth %}
+{% if has_auth or auth != "none" or "auth" in extras %}
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 ALGORITHM=HS256
-{% if auth == "auth0" %}
+{% if auth == "auth0" or "auth0" in extras %}
 # Auth0 (active)
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_CLIENT_ID=CHANGE_ME
@@ -122,19 +130,19 @@ AUTH0_AUDIENCE=https://your-api.example.com
 # =============================================================================
 # STORAGE
 # =============================================================================
-{% if storage == "s3" %}
+{% if storage == "s3" or has_s3 or "s3" in extras %}
 # AWS S3 / MinIO (active)
 AWS_ACCESS_KEY_ID=CHANGE_ME
 AWS_SECRET_ACCESS_KEY=CHANGE_ME
 AWS_REGION=us-east-1
 AWS_S3_BUCKET={{ slug }}-bucket
 AWS_S3_ENDPOINT_URL=               # http://localhost:9000 for MinIO (local S3)
-{% elif storage == "gcs" %}
+{% elif storage == "gcs" or "gcs" in extras %}
 # Google Cloud Storage (active)
 GCS_PROJECT_ID=CHANGE_ME
 GCS_BUCKET={{ slug }}-bucket
 GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
-{% elif storage == "cloudinary" %}
+{% elif storage == "cloudinary" or "cloudinary" in extras %}
 # Cloudinary (active)
 CLOUDINARY_CLOUD_NAME=CHANGE_ME
 CLOUDINARY_API_KEY=CHANGE_ME
@@ -154,7 +162,7 @@ CLOUDINARY_API_SECRET=CHANGE_ME
 # =============================================================================
 # AI / LLM
 # =============================================================================
-{% if ai == "openai" %}
+{% if ai == "openai" or "openai" in extras %}
 # OpenAI (active)
 OPENAI_API_KEY=sk-placeholder
 OPENAI_MODEL=gpt-4o
@@ -162,26 +170,26 @@ OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_BASE_URL=                   # blank = api.openai.com
                                    # Azure: https://<resource>.openai.azure.com/
                                    # LM Studio / Ollama: http://localhost:1234/v1
-{% elif ai == "anthropic" %}
+{% elif ai == "anthropic" or "anthropic" in extras %}
 # Anthropic Claude (active)
 ANTHROPIC_API_KEY=sk-ant-placeholder
 ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
-{% elif ai == "gemini" %}
+{% elif ai == "gemini" or "gemini" in extras %}
 # Google Gemini (active)
 GEMINI_API_KEY=CHANGE_ME
 GEMINI_MODEL=gemini-1.5-pro
-{% elif ai == "ollama" %}
+{% elif ai == "ollama" or "ollama" in extras %}
 # Ollama — local LLM, no API key (active)
 OLLAMA_HOST=localhost
 OLLAMA_PORT=11434
-OLLAMA_MODEL=tinyllama
-{% elif ai == "langchain" %}
+OLLAMA_MODEL=llama3
+{% elif ai == "langchain" or "langchain" in extras %}
 # LangChain (active) — uses OpenAI backend by default
 OPENAI_API_KEY=sk-placeholder
 OPENAI_MODEL=gpt-4o
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_BASE_URL=
-{% elif ai == "llamaindex" %}
+{% elif ai == "llamaindex" or "llamaindex" in extras %}
 # LlamaIndex (active) — uses OpenAI backend by default
 OPENAI_API_KEY=sk-placeholder
 OPENAI_MODEL=gpt-4o
@@ -192,7 +200,7 @@ OPENAI_BASE_URL=
 # OpenAI:     OPENAI_API_KEY=sk-placeholder | OPENAI_MODEL=gpt-4o | OPENAI_EMBEDDING_MODEL=text-embedding-3-small | OPENAI_BASE_URL=
 # Anthropic:  ANTHROPIC_API_KEY=sk-ant-placeholder | ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 # Gemini:     GEMINI_API_KEY=CHANGE_ME | GEMINI_MODEL=gemini-1.5-pro
-# Ollama:     OLLAMA_HOST=localhost | OLLAMA_PORT=11434 | OLLAMA_MODEL=tinyllama  (no API key)
+# Ollama:     OLLAMA_HOST=localhost | OLLAMA_PORT=11434 | OLLAMA_MODEL=llama3  (no API key)
 # LangChain:  uses OPENAI_* vars above
 # LlamaIndex: uses OPENAI_* vars above
 {% endif %}
@@ -200,7 +208,7 @@ OPENAI_BASE_URL=
 # =============================================================================
 # MONITORING
 # =============================================================================
-{% if has_sentry %}
+{% if has_sentry or "sentry" in extras %}
 # Sentry (active)
 SENTRY_DSN=https://xxx@sentry.io/yyy
 {% else %}
@@ -213,11 +221,11 @@ SENTRY_DSN=https://xxx@sentry.io/yyy
 # =============================================================================
 # EMAIL
 # =============================================================================
-{% if email == "sendgrid" %}
+{% if email == "sendgrid" or "sendgrid" in extras %}
 # SendGrid (active)
 SENDGRID_API_KEY=SG.placeholder
 SENDGRID_FROM_EMAIL=noreply@example.com
-{% elif email == "smtp" %}
+{% elif email == "smtp" or "smtp" in extras %}
 # SMTP (active)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -226,10 +234,10 @@ SMTP_PASSWORD=CHANGE_ME
 SMTP_FROM_EMAIL=noreply@example.com
 SMTP_STARTTLS=true
 SMTP_SSL=false
-{% elif email == "ses" %}
+{% elif email == "ses" or "ses" in extras %}
 # AWS SES (active) — uses AWS_* credentials above
 SES_FROM_EMAIL=noreply@example.com
-{% elif email == "resend" %}
+{% elif email == "resend" or "resend" in extras %}
 # Resend (active)
 RESEND_API_KEY=re_placeholder
 RESEND_FROM_EMAIL=noreply@example.com
@@ -244,10 +252,10 @@ RESEND_FROM_EMAIL=noreply@example.com
 # =============================================================================
 # NOTIFICATIONS
 # =============================================================================
-{% if notify == "slack" %}
+{% if notify == "slack" or "slack" in extras %}
 # Slack (active)
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/CHANGE_ME
-{% elif notify == "discord" %}
+{% elif notify == "discord" or "discord" in extras %}
 # Discord (active)
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/CHANGE_ME
 {% else %}
@@ -259,32 +267,32 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/CHANGE_ME
 # =============================================================================
 # VECTOR DATABASE
 # =============================================================================
-{% if vector_db == "qdrant" %}
+{% if vector_db == "qdrant" or "qdrant" in extras %}
 # Qdrant (active)
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
 QDRANT_API_KEY=                    # blank for local Docker Qdrant
-{% elif vector_db == "chroma" %}
+{% elif vector_db == "chroma" or "chroma" in extras %}
 # ChromaDB (active) — local persistent, no server needed
 # CHROMA_DATA_PATH=./chroma_data   # configured in code
-{% elif vector_db == "pinecone" %}
+{% elif vector_db == "pinecone" or "pinecone" in extras %}
 # Pinecone (active)
 PINECONE_API_KEY=CHANGE_ME
 PINECONE_INDEX_NAME={{ slug }}-index
-{% elif vector_db == "supabase" %}
+{% elif vector_db == "supabase" or "supabase" in extras %}
 # Supabase pgvector (active) — uses SUPABASE_URL / SUPABASE_KEY above
-{% elif vector_db == "elasticsearch" %}
+{% elif vector_db == "elasticsearch" or "elasticsearch" in extras %}
 # Elasticsearch (active)
 ELASTICSEARCH_HOST=localhost
 ELASTICSEARCH_PORT=9200
 ELASTICSEARCH_API_KEY=
-{% elif vector_db == "opensearch" %}
+{% elif vector_db == "opensearch" or "opensearch" in extras %}
 # OpenSearch (active)
 OPENSEARCH_HOST=localhost
 OPENSEARCH_PORT=9200
 OPENSEARCH_USER=admin
 OPENSEARCH_PASSWORD=admin
-{% elif vector_db == "vespa" %}
+{% elif vector_db == "vespa" or "vespa" in extras %}
 # Vespa (active)
 VESPA_ENDPOINT=http://localhost:8080
 {% else %}
@@ -332,10 +340,22 @@ GITHUB_CLIENT_ID=placeholder
 GITHUB_CLIENT_SECRET=placeholder
 MICROSOFT_CLIENT_ID=placeholder
 MICROSOFT_CLIENT_SECRET=placeholder
+MICROSOFT_TENANT_ID=placeholder
 {% endif %}
 {% if "meilisearch" in extras %}
 # Meilisearch (active)
 MEILISEARCH_HOST=http://localhost:7700
 MEILISEARCH_API_KEY=masterKey
+{% endif %}
+{% if "opensearch" in extras %}
+# OpenSearch (active)
+OPENSEARCH_HOST=localhost
+OPENSEARCH_PORT=9200
+OPENSEARCH_USER=admin
+OPENSEARCH_PASSWORD=admin
+{% endif %}
+{% if "vespa" in extras %}
+# Vespa (active)
+VESPA_ENDPOINT=http://localhost:8080
 {% endif %}
 {% endif %}

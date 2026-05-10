@@ -62,6 +62,14 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+@app.callback()
+def main(
+    version: Optional[bool] = typer.Option(
+        None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version"
+    ),
+) -> None:
+    pass
+
 @app.command("help", help="Show this help message and exit.")
 def show_help(ctx: typer.Context) -> None:
     """Print the global CLI help."""
@@ -485,6 +493,8 @@ _ADDABLE_FEATURES = {
     "opentelemetry": "OpenTelemetry distributed tracing",
     "sendgrid":    "SendGrid email",
     "smtp":        "SMTP email (fastapi-mail)",
+    "ses":         "AWS SES email",
+    "resend":      "Resend transactional email",
     "slack":       "Slack webhook notifications",
     "discord":     "Discord webhook notifications",
     "qdrant":      "Qdrant vector database",
@@ -522,18 +532,35 @@ def add_feature(
     feature: Optional[str] = typer.Argument(None, help="Feature to add. Leave blank to see all available features."),
     project_dir: Path = typer.Option(Path("."), "--dir", "-d", help="Path to the existing project"),
 ) -> None:
+    import json
+    import shlex
+    import subprocess
+    from jinja2 import Environment, PackageLoader, StrictUndefined, TemplateNotFound
+    from fastapi_spawn.steps import FEATURE_ACTIONS
+
     _print_banner()
+
+    # Load tracking config
+    config_path = project_dir / ".fastapi-spawn.json"
+    project_status: dict = {}
+    if config_path.exists():
+        try:
+            project_status = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception:
+            console.print("[dim yellow]⚠ Could not parse .fastapi-spawn.json — starting fresh[/dim yellow]")
+
+    # Show feature table if no feature given
     if not feature:
-        console.print("\n[bold cyan]Available features to add:[/bold cyan]\n")
-        table = Table(box=None)
+        installed = set(project_status.get("installed_features", []))
+        table = Table(title="Available Features", box=None)
         table.add_column("Feature", style="bold green", justify="left")
         table.add_column("Description", style="white", justify="left")
-        
+        table.add_column("Status", justify="center")
         for k, v in _ADDABLE_FEATURES.items():
-            table.add_row(k, v)
-            
+            status = "[bold green]✓ installed[/bold green]" if k in installed else "[dim]—[/dim]"
+            table.add_row(k, v, status)
         console.print(table)
-        console.print("\n[dim]Run 'fastapi-spawn add <feature>' to add a feature.[/dim]\n")
+        console.print("\n[dim]Run: fastapi-spawn add <feature>[/dim]\n")
         raise typer.Exit(0)
 
     if feature not in _ADDABLE_FEATURES:
@@ -547,124 +574,134 @@ def add_feature(
         console.print(f"[bold red]✗ Directory not found:[/bold red] {project_dir.resolve()}")
         raise typer.Exit(1)
 
-    if feature == "alembic":
-        console.print("[bold cyan]→ Automatically adding Alembic...[/bold cyan]")
-        
-        # 1. Prompt for DB type
-        from fastapi_spawn.constants import Database
-        import questionary
-        
-        db_type = questionary.select(
-            "Which database are you using?",
-            choices=[Database.postgresql.value, Database.mysql.value, Database.sqlite.value],
-            default=Database.postgresql.value
-        ).ask()
-        
-        if not db_type:
-            console.print("[bold red]✗ Database selection cancelled[/bold red]")
-            raise typer.Exit(1)
-            
-        # 2. Run uv add alembic
-        import subprocess
-        try:
-            console.print("[dim]Running: uv add alembic[/dim]")
-            subprocess.run(["uv", "add", "alembic"], cwd=project_dir, check=True)
-        except subprocess.CalledProcessError:
-            console.print("[bold red]✗ Failed to add alembic dependency[/bold red]")
-            raise typer.Exit(1)
-            
-        # 3. Run alembic init
-        try:
-            console.print("[dim]Running: uv run alembic init migrations[/dim]")
-            subprocess.run(["uv", "run", "alembic", "init", "migrations"], cwd=project_dir, check=True)
-        except subprocess.CalledProcessError:
-            console.print("[bold red]✗ Failed to initialize alembic[/bold red]")
-            raise typer.Exit(1)
-            
-        # 4. Render env.py
-        console.print("[dim]Rendering async env.py...[/dim]")
-        from fastapi_spawn.generator import ProjectGenerator
-        from fastapi_spawn.config import ProjectConfig
-        
-        cfg = ProjectConfig(project_name=project_dir.name, db=Database(db_type), orm=ORM.sqlalchemy)
-        cfg.has_alembic = True
-        generator = ProjectGenerator(cfg, project_dir)
-        
-        generator._render_to(project_dir / "migrations" / "env.py", "alembic/env.py.j2")
-        
-        console.print("[bold green]✓ Alembic added successfully![/bold green]")
-        console.print("\n[bold yellow]Next Steps:[/bold yellow]")
-        console.print("  1. Update [bold]alembic.ini[/bold] with your database URL.")
-        console.print("  2. Run [bold]uv run alembic revision --autogenerate -m 'initial'[/bold]")
-        console.print("  3. Run [bold]uv run alembic upgrade head[/bold]\n")
+    installed_features: list = project_status.get("installed_features", [])
+    if feature in installed_features:
+        console.print(f"[bold yellow]⚠ '{feature}' already installed in this project.[/bold yellow]")
         raise typer.Exit(0)
 
-    console.print(f"[bold cyan]→ Adding feature:[/bold cyan] [bold]{feature}[/bold] — {_ADDABLE_FEATURES[feature]}")
-    console.print(f"[dim]Target project:[/dim] {project_dir.resolve()}\n")
-    _feature_guidance(feature, project_dir)
+    action = FEATURE_ACTIONS.get(feature)
+    if not action:
+        console.print(f"[bold yellow]⚠ No automation defined for '{feature}'.[/bold yellow]")
+        raise typer.Exit(0)
 
+    console.print(Panel.fit(
+        f"[bold cyan]→ Adding:[/bold cyan] [bold]{feature}[/bold]\n[dim]{_ADDABLE_FEATURES[feature]}[/dim]",
+        border_style="cyan", padding=(0, 2),
+    ))
 
-def _feature_guidance(feature: str, _project_dir: Path) -> None:
-    """Print actionable steps for each addable feature."""
-    _STEPS: dict[str, list[str]] = {
-        "auth":      ["Add deps: python-jose[cryptography], passlib[bcrypt], python-multipart", "Add app/core/security.py (JWT helpers)", "Add auth endpoints: app/api/v1/auth.py", "Add to .env: SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES=30, ALGORITHM=HS256"],
-        "s3":        ["Add dep: boto3>=1.34.0", "Create app/core/storage.py (upload, presigned_url, delete)", "Add to .env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET, AWS_S3_ENDPOINT_URL (MinIO: http://localhost:9000)"],
-        "gcs":       ["Add dep: google-cloud-storage>=2.16.0", "Create app/core/storage.py (GCS client)", "Add to .env: GCS_PROJECT_ID, GCS_BUCKET, GOOGLE_APPLICATION_CREDENTIALS=./service-account.json"],
-        "cloudinary":["Add dep: cloudinary>=1.40.0", "Create app/core/storage.py (Cloudinary upload/CDN)", "Add to .env: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET"],
-        "openai":    ["Add dep: openai>=1.30.0", "Create app/core/ai.py (chat_completion, get_embedding)", "Add to .env: OPENAI_API_KEY, OPENAI_MODEL=gpt-4o, OPENAI_EMBEDDING_MODEL, OPENAI_BASE_URL="],
-        "anthropic": ["Add dep: anthropic>=0.28.0", "Create app/core/ai.py (chat_completion)", "Add to .env: ANTHROPIC_API_KEY, ANTHROPIC_MODEL=claude-3-5-sonnet-20241022"],
-        "gemini":    ["Add dep: google-generativeai>=0.7.0", "Create app/core/ai.py (chat_completion, get_embedding)", "Add to .env: GEMINI_API_KEY, GEMINI_MODEL=gemini-1.5-pro"],
-        "ollama":    ["No API key needed — run: docker run -p 11434:11434 ollama/ollama", "Create app/core/ai.py (chat via httpx)", "Add to .env: OLLAMA_HOST=localhost, OLLAMA_PORT=11434, OLLAMA_MODEL=llama3"],
-        "langchain": ["Add deps: langchain>=0.2.0, langchain-openai>=0.1.0", "Create app/core/ai.py (LangChain ChatOpenAI + embeddings)", "Add to .env: OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL"],
-        "llamaindex":["Add deps: llama-index>=0.10.0, llama-index-llms-openai, llama-index-embeddings-openai", "Create app/core/ai.py (LlamaIndex VectorStoreIndex)", "Add to .env: OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL"],
-        "alembic":   ["Add dep: alembic>=1.13.0", "Run: alembic init migrations", "Replace migrations/env.py with async-compatible version", "Add to [tool.uv.scripts]: migrate = 'alembic upgrade head'", "Run: uv run migrate"],
-        "celery":    ["Add dep: celery[redis]>=5.3.6", "Create tasks/celery_app.py + tasks/sample_tasks.py", "Add to .env: REDIS_HOST, REDIS_PORT, REDIS_DB", "Add to [tool.uv.scripts]: worker = 'celery -A tasks.celery_app worker --loglevel=info'"],
-        "arq":       ["Add deps: arq>=0.25.0, redis[hiredis]>=5.0.0", "Create tasks/arq_worker.py (WorkerSettings, task defs)", "Run with: arq tasks.arq_worker.WorkerSettings"],
-        "redis":     ["Add dep: redis[hiredis]>=5.0.0", "Add to .env: REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_DB", "Add redis_url @property to Settings in app/core/config.py"],
-        "kafka":     ["Add dep: aiokafka>=0.10.0", "Add to .env: KAFKA_HOST=localhost, KAFKA_PORT=9092"],
-        "sentry":    ["Add dep: sentry-sdk[fastapi]>=2.0.0", "Create app/core/monitoring.py (init_sentry)", "Add to .env: SENTRY_DSN=https://xxx@sentry.io/yyy", "Call init_sentry() in app/main.py on startup"],
-        "prometheus":["Add dep: prometheus-fastapi-instrumentator>=7.0.0", "Create app/core/monitoring.py (init_prometheus)", "Call init_prometheus(app) in app/main.py — exposes /metrics"],
-        "opentelemetry": ["Add dep: opentelemetry-sdk, opentelemetry-instrumentation-fastapi", "Set OTEL_EXPORTER_OTLP_ENDPOINT in .env or compose"],
-        "sendgrid":  ["Add dep: sendgrid>=6.11.0", "Create app/core/email.py", "Add to .env: SENDGRID_API_KEY, SENDGRID_FROM_EMAIL"],
-        "smtp":      ["Add dep: fastapi-mail>=1.4.1", "Create app/core/email.py", "Add to .env: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM_EMAIL"],
-        "ses":       ["Add dep: boto3>=1.34.0", "Create app/core/email.py", "Add to .env: AWS_* credentials, SES_FROM_EMAIL"],
-        "resend":    ["Add dep: resend>=2.1.0", "Create app/core/email.py (Resend client)", "Add to .env: RESEND_API_KEY"],
-        "slack":     ["No extra dep (uses httpx)", "Create app/core/notifications.py", "Add to .env: SLACK_WEBHOOK_URL=https://hooks.slack.com/services/..."],
-        "discord":   ["No extra dep (uses httpx)", "Create app/core/notifications.py", "Add to .env: DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/..."],
-        "qdrant":    ["Add dep: qdrant-client[fastembed]>=1.9.0", "Create app/core/vector_db.py", "Add to .env: QDRANT_HOST=localhost, QDRANT_PORT=6333, QDRANT_API_KEY= (blank for local)"],
-        "chroma":    ["Add dep: chromadb>=0.5.0", "Create app/core/vector_db.py (persistent local client)", "No env vars needed — data stored in ./chroma_data"],
-        "pinecone":  ["Add dep: pinecone-client>=3.2.0", "Create app/core/vector_db.py", "Add to .env: PINECONE_API_KEY, PINECONE_INDEX_NAME"],
-        "elasticsearch": ["Add dep: elasticsearch[async]>=8.13.0", "Create app/core/vector_db.py (kNN search)", "Add to .env: ELASTICSEARCH_HOST, ELASTICSEARCH_PORT, ELASTICSEARCH_API_KEY"],
-        "meilisearch": ["Add dep: meilisearch>=0.30.0", "Create app/core/search.py (Meilisearch client)", "Add to .env: MEILISEARCH_HOST=http://localhost:7700, MEILISEARCH_API_KEY"],
-        "opensearch": ["Add dep: opensearch-py[async]>=2.5.0", "Create app/core/search.py (OpenSearch client)", "Add to .env: OPENSEARCH_HOST, OPENSEARCH_PORT, OPENSEARCH_USER, OPENSEARCH_PASSWORD"],
-        "vespa":     ["Add dep: pyvespa>=0.40.0", "Create app/core/search.py (Vespa client)", "Add to .env: VESPA_ENDPOINT"],
-        "websockets":["No extra dep (built into FastAPI)", "Create app/core/ws_manager.py (ConnectionManager)", "Create app/api/v1/ws/router.py — /ws/connect, /ws/connect/{room_id}"],
-        "sse":       ["Add dep: sse-starlette>=2.1.0", "Create app/api/v1/streaming/router.py", "Return EventSourceResponse(async_generator)"],
-        "graphql":   ["Add dep: strawberry-graphql[fastapi]>=0.227.0", "Create app/api/graphql.py (Query + Mutation + Subscription)", "Mount: app.include_router(graphql_router, prefix='/graphql')"],
-        "stripe":    ["Add dep: stripe>=9.0.0", "Create app/api/v1/payments/router.py (webhook endpoint)", "Add to .env: STRIPE_API_KEY, STRIPE_WEBHOOK_SECRET"],
-        "sso":       ["Add dep: fastapi-sso>=0.14.0", "Create app/api/v1/auth/sso.py (Google/Github/Microsoft SSO)", "Add to .env: GOOGLE_CLIENT_ID, GITHUB_CLIENT_ID, etc."],
-        "sso-google": ["1. Use 'fastapi-spawn new temp_app --extra sso-google' and copy the resulting sso.py"],
-        "sso-github": ["1. Use 'fastapi-spawn new temp_app --extra sso-github' and copy the resulting sso.py"],
-        "sso-microsoft": ["1. Use 'fastapi-spawn new temp_app --extra sso-microsoft' and copy the resulting sso.py"],
-        "seed":      ["Add dep: faker>=25.0.0", "Create db/seed.py (generate 100 mock users/posts)", "Run: uv run python db/seed.py"],
-        "ocr":       ["Add deps: pymupdf>=1.24.0, pytesseract>=0.3.10", "Create app/core/ocr.py (PDF parsing pipeline)", "Install system deps: sudo apt install tesseract-ocr"],
-        "rbac":      ["Create app/core/permissions.py and app/api/v1/permissions/router.py", "Add app.include_router(permissions.router) to main.py"],
-        "caching":   ["Add dep: fastapi-cache2[redis]>=0.2.1", "Create app/core/cache.py", "Initialize cache in lifespan and use @cache(expire=60) on endpoints"],
-        "response-format": ["Create app/middleware/response_format.py", "Add app.add_middleware(ResponseFormattingMiddleware) to main.py"],
-        "admin":     ["Add dep: sqladmin[full]>=0.16.1", "Create app/admin/setup.py", "Call setup_admin(app, engine) in main.py"],
-        "pagination":["Add dep: fastapi-pagination>=0.12.0", "Create app/api/v1/pagination/router.py", "Call add_pagination(app) in main.py"],
-        "uploads":   ["Create app/api/v1/uploads/router.py", "Include router in app/api/v1/router.py"],
-        "docker":    ["Create Dockerfile (multi-stage, uv-based)", "Create docker-compose.yml with all selected services", "Create .dockerignore"],
-        "ci":        ["Create .github/workflows/tests.yml (matrix: 3.10, 3.11, 3.12)", "Create .github/workflows/publish.yml (v* tags → PyPI)", "Add PYPI_API_TOKEN to GitHub repo secrets"],
-        "helm":      ["Create infra/helm/Chart.yaml", "Create infra/helm/values.yaml (replicas, image, resources)", "Run: helm install my-release ./infra/helm"],
-        "terraform": ["Create infra/terraform/main.tf (AWS ECR + ECS)", "Create infra/terraform/variables.tf", "Run: terraform -chdir=infra/terraform init && terraform apply"],
-    }
+    # [1/4] Install deps
+    deps = action.get("deps", [])
+    if deps:
+        console.print("\n[bold cyan][1/4] Installing dependencies...[/bold cyan]")
+        for d in deps:
+            console.print(f"  [dim]uv add {d}[/dim]")
+        try:
+            subprocess.run(["uv", "add"] + deps, cwd=project_dir, check=True)
+            console.print("  [bold green]✓ Dependencies installed[/bold green]")
+        except subprocess.CalledProcessError:
+            console.print(f"  [bold red]✗ Failed to install deps[/bold red]")
+            raise typer.Exit(1)
+    else:
+        console.print("\n[bold cyan][1/4] No extra dependencies needed.[/bold cyan]")
 
-    steps = _STEPS.get(feature, [])
-    if steps:
-        content = "\n".join(f"  [dim]{i+1}.[/dim] {s}" for i, s in enumerate(steps))
-        console.print(Panel(content, title=f"[bold cyan]Steps to add '{feature}'[/bold cyan]", border_style="cyan", padding=(0, 1)))
-    console.print(f"\n[dim]Preview files:[/dim] [bold cyan]fastapi-spawn new <name> --{feature} --dry-run[/bold cyan]")
+    # [2/4] Generate files from templates
+    files = action.get("files", [])
+    if files:
+        console.print("\n[bold cyan][2/4] Generating files...[/bold cyan]")
+        jinja_env = Environment(
+            loader=PackageLoader("fastapi_spawn", "templates"),
+            undefined=StrictUndefined,
+            keep_trailing_newline=True,
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        ctx = {
+            "project_name": project_status.get("project_name", project_dir.name),
+            "db": project_status.get("db", "postgresql"),
+            "orm": project_status.get("orm", "sqlalchemy"),
+            "has_auth": feature == "auth" or "auth" in installed_features,
+            "has_alembic": feature == "alembic" or "alembic" in installed_features,
+            "has_broker": feature in ("celery", "arq") or any(f in installed_features for f in ("celery", "arq")),
+            "has_s3": feature in ("s3", "gcs", "cloudinary") or any(f in installed_features for f in ("s3", "gcs", "cloudinary")),
+            "has_ai": feature in ("openai", "anthropic", "gemini", "ollama", "langchain", "llamaindex"),
+            "ai_provider": feature if feature in ("openai", "anthropic", "gemini", "ollama", "langchain", "llamaindex") else project_status.get("ai", "none"),
+            "storage_provider": feature if feature in ("s3", "gcs", "cloudinary") else project_status.get("storage", "none"),
+            "email_provider": feature if feature in ("sendgrid", "smtp", "ses", "resend") else project_status.get("email", "none"),
+            "notify_provider": feature if feature in ("slack", "discord") else project_status.get("notify", "none"),
+            "vector_db": feature if feature in ("qdrant", "chroma", "pinecone", "elasticsearch") else project_status.get("vector_db", "none"),
+            "monitoring": feature if feature in ("sentry", "prometheus", "opentelemetry") else project_status.get("monitoring", "none"),
+        }
+        for template_path, dest_rel in files:
+            dest = project_dir / dest_rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                tmpl = jinja_env.get_template(template_path)
+                dest.write_text(tmpl.render(**ctx), encoding="utf-8")
+                console.print(f"  [bold green]✓[/bold green] {dest_rel}")
+            except TemplateNotFound:
+                console.print(f"  [dim yellow]⚠ No template for {dest_rel} — skipping[/dim yellow]")
+            except Exception as exc:
+                console.print(f"  [bold red]✗ {dest_rel}: {exc}[/bold red]")
+    else:
+        console.print("\n[bold cyan][2/4] No files to generate.[/bold cyan]")
+
+    # [3/4] Append env vars to .env
+    env_vars = action.get("env_vars", [])
+    if env_vars:
+        console.print("\n[bold cyan][3/4] Updating .env...[/bold cyan]")
+        env_file = project_dir / ".env"
+        existing_env = env_file.read_text(encoding="utf-8") if env_file.exists() else ""
+        new_lines = [v for v in env_vars if v.split("=")[0].strip() not in existing_env]
+        if new_lines:
+            with env_file.open("a", encoding="utf-8") as f:
+                f.write(f"\n# Added by fastapi-spawn add {feature}\n")
+                for line in new_lines:
+                    f.write(line + "\n")
+            console.print(f"  [bold green]✓[/bold green] Added {len(new_lines)} env var(s)")
+        else:
+            console.print("  [dim]All env vars already in .env[/dim]")
+    else:
+        console.print("\n[bold cyan][3/4] No env vars needed.[/bold cyan]")
+
+    # [4/4] Run init commands / special handling
+    if action.get("_special") == "alembic":
+        console.print("\n[bold cyan][4/4] Initializing Alembic...[/bold cyan]")
+        try:
+            subprocess.run(["uv", "run", "alembic", "init", "migrations"], cwd=project_dir, check=True)
+            console.print("  [bold green]✓ alembic init migrations[/bold green]")
+            db_val = project_status.get("db", "postgresql")
+            cfg = ProjectConfig(project_name=project_dir.name, db=Database(db_val), orm=ORM.sqlalchemy, migration=MigrationTool.alembic)
+            gen = ProjectGenerator(cfg, project_dir)
+            gen._render_to(project_dir / "migrations" / "env.py", "alembic/env.py.j2")
+            console.print("  [bold green]✓ Rendered async env.py[/bold green]")
+        except subprocess.CalledProcessError:
+            console.print("  [bold red]✗ alembic init failed[/bold red]")
+    elif action.get("run_cmds"):
+        console.print("\n[bold cyan][4/4] Running commands...[/bold cyan]")
+        for cmd_str in action["run_cmds"]:
+            console.print(f"  [dim]{cmd_str}[/dim]")
+            try:
+                subprocess.run(shlex.split(cmd_str), cwd=project_dir, check=True)
+                console.print(f"  [bold green]✓[/bold green] done")
+            except subprocess.CalledProcessError:
+                console.print(f"  [bold red]✗ Failed: {cmd_str}[/bold red]")
+    else:
+        console.print("\n[bold cyan][4/4] No init commands needed.[/bold cyan]")
+
+    # Update tracking file
+    installed_features.append(feature)
+    project_status["installed_features"] = installed_features
+    try:
+        config_path.write_text(json.dumps(project_status, indent=2), encoding="utf-8")
+        console.print("\n[dim]ℹ .fastapi-spawn.json updated[/dim]")
+    except Exception:
+        pass
+
+    note = action.get("note")
+    msg = f"[bold green]✓ {feature.capitalize()} added successfully![/bold green]"
+    if note:
+        msg += f"\n[dim]{note}[/dim]"
+    console.print(Panel(msg, border_style="green", padding=(0, 2)))
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
