@@ -630,11 +630,11 @@ def _print_next_steps(config: ProjectConfig) -> None:
         steps.append(f"  [bold cyan]cd {config.project_name}[/bold cyan]")
     steps.append("  [bold cyan]uv sync[/bold cyan]")
     if config.has_alembic:
-        steps.append("  [bold cyan]uv run migrate[/bold cyan]")
+        steps.append("  [bold cyan]uv run alembic upgrade head[/bold cyan]")
     if config.has_docker:
         steps.append("  [bold cyan]docker compose up --build[/bold cyan]")
     else:
-        steps.append("  [bold cyan]uv run dev[/bold cyan]")
+        steps.append("  [bold cyan]uv run uvicorn app.main:app --reload[/bold cyan]")
 
     console.print(Panel(
         "\n".join(steps),

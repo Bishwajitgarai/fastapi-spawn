@@ -47,9 +47,8 @@ _formatter = logging.Formatter(_FMT, datefmt="%Y-%m-%d %H:%M:%S")
 
 # ── Logger setup ───────────────────────────────────────────────────────────
 
-logger = logging.getLogger("{{ slug }}")
+logger = logging.getLogger()
 logger.setLevel(settings.LOG_LEVEL)
-logger.propagate = False
 logger.addFilter(_ContextFilter())
 
 # Console handler
