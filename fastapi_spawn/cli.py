@@ -523,7 +523,6 @@ def add_feature(
     project_dir: Path = typer.Option(Path("."), "--dir", "-d", help="Path to the existing project"),
 ) -> None:
     _print_banner()
-    
     if not feature:
         console.print("\n[bold cyan]Available features to add:[/bold cyan]\n")
         table = Table(box=None)
@@ -547,6 +546,58 @@ def add_feature(
     if not project_dir.exists():
         console.print(f"[bold red]✗ Directory not found:[/bold red] {project_dir.resolve()}")
         raise typer.Exit(1)
+
+    if feature == "alembic":
+        console.print("[bold cyan]→ Automatically adding Alembic...[/bold cyan]")
+        
+        # 1. Prompt for DB type
+        from fastapi_spawn.constants import Database
+        import questionary
+        
+        db_type = questionary.select(
+            "Which database are you using?",
+            choices=[Database.postgresql.value, Database.mysql.value, Database.sqlite.value],
+            default=Database.postgresql.value
+        ).ask()
+        
+        if not db_type:
+            console.print("[bold red]✗ Database selection cancelled[/bold red]")
+            raise typer.Exit(1)
+            
+        # 2. Run uv add alembic
+        import subprocess
+        try:
+            console.print("[dim]Running: uv add alembic[/dim]")
+            subprocess.run(["uv", "add", "alembic"], cwd=project_dir, check=True)
+        except subprocess.CalledProcessError:
+            console.print("[bold red]✗ Failed to add alembic dependency[/bold red]")
+            raise typer.Exit(1)
+            
+        # 3. Run alembic init
+        try:
+            console.print("[dim]Running: uv run alembic init migrations[/dim]")
+            subprocess.run(["uv", "run", "alembic", "init", "migrations"], cwd=project_dir, check=True)
+        except subprocess.CalledProcessError:
+            console.print("[bold red]✗ Failed to initialize alembic[/bold red]")
+            raise typer.Exit(1)
+            
+        # 4. Render env.py
+        console.print("[dim]Rendering async env.py...[/dim]")
+        from fastapi_spawn.generator import ProjectGenerator
+        from fastapi_spawn.config import ProjectConfig
+        
+        cfg = ProjectConfig(project_name=project_dir.name, db=Database(db_type), orm=ORM.sqlalchemy)
+        cfg.has_alembic = True
+        generator = ProjectGenerator(cfg, project_dir)
+        
+        generator._render_to(project_dir / "migrations" / "env.py", "alembic/env.py.j2")
+        
+        console.print("[bold green]✓ Alembic added successfully![/bold green]")
+        console.print("\n[bold yellow]Next Steps:[/bold yellow]")
+        console.print("  1. Update [bold]alembic.ini[/bold] with your database URL.")
+        console.print("  2. Run [bold]uv run alembic revision --autogenerate -m 'initial'[/bold]")
+        console.print("  3. Run [bold]uv run alembic upgrade head[/bold]\n")
+        raise typer.Exit(0)
 
     console.print(f"[bold cyan]→ Adding feature:[/bold cyan] [bold]{feature}[/bold] — {_ADDABLE_FEATURES[feature]}")
     console.print(f"[dim]Target project:[/dim] {project_dir.resolve()}\n")

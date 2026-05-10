@@ -5,6 +5,8 @@ from __future__ import annotations
 import shutil
 import tempfile
 from pathlib import Path
+from dataclasses import asdict
+import json
 
 from jinja2 import Environment, PackageLoader, StrictUndefined, TemplateNotFound
 from rich.console import Console
@@ -132,6 +134,20 @@ class ProjectGenerator:
         self._render_to(root / ".gitignore", "base/gitignore.j2")
         self._render_to(root / ".pre-commit-config.yaml", "base/pre_commit.j2")
         self._render_to(root / "README.md", "base/README.md.j2")
+        
+        # Save tracking log for future add commands
+        def _enum_to_str(obj):
+            if isinstance(obj, dict):
+                return {k: _enum_to_str(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [_enum_to_str(v) for v in obj]
+            elif hasattr(obj, "value") and not isinstance(obj, str):  # Enum
+                return obj.value
+            return obj
+            
+        config_dict = _enum_to_str(asdict(self.config))
+        config_path = root / ".fastapi-spawn.json"
+        config_path.write_text(json.dumps(config_dict, indent=2), encoding="utf-8")
 
     def _generate_app(self, root: Path) -> None:
         pkg = root / "app"
